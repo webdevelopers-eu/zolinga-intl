@@ -1,0 +1,48 @@
+{
+    "name": "Zolinga Internationalization",
+    "version": "1.0",
+    "description": "Provides internationalization support for Zolinga applications.",
+    "authors": [
+        "Daniel Sevcik <danny@zolinga.net>"
+    ],
+    "attributes": {},
+    "listen": [
+        {
+            "description": "Provides internationalization services and information about locale.",
+            "service": "locale",
+            "class": "Zolinga\\Intl\\LocaleService",
+            "origin": [
+                "internal"
+            ]
+        },
+        {
+            "description": "CLI interface for gettext extraction.",
+            "event": "gettext:extract",
+            "class": "Zolinga\\Intl\\GettextCli",
+            "method": "extract",
+            "origin": [
+                "cli"
+            ]
+        },
+        {
+            "description": "CLI interface for gettext compilation.",
+            "event": "gettext:compile",
+            "class": "Zolinga\\Intl\\GettextCli",
+            "method": "compile",
+            "origin": [
+                "cli"
+            ]
+        }
+    ],
+    "autoload": {
+        "Zolinga\\Intl\\": "src/"
+    },
+    "config": {
+        "intl": {
+            "locales": [
+                "en_US",
+                "cs-CZ"
+            ]
+        }
+    }
+}
