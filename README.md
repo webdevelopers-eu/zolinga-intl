@@ -11,7 +11,7 @@ Zolinga is focused on multilingual support. This means that the system is design
 First you need to install the Zolinga framework. See [Zolinga PHP Framework](https://github.com/webdevelopers-eu/zolinga). Then you can install the Zolinga CMS module by running this command in the root of your Zolinga installation:
 
 ```bash
-$ ./bin/zolinga install --module=zolinga-cms
+$ ./bin/zolinga install --module=zolinga-intl
 ```
 
 ## Terminology
