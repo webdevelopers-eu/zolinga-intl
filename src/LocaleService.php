@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Zolinga\Intl;
 
 use Zolinga\System\Events\{ServiceInterface, RequestResponseEvent};
-use Locale;
+use Locale, NumberFormatter;
 
 /**
  * Language and gettext service.
@@ -217,6 +217,53 @@ class LocaleService implements ServiceInterface
             default:
                 throw new \Exception("The property $name is read-only.");
         }
+    }
+
+    /**
+     * Convert string to float using current or given locale.
+     * 
+     * Example:
+     * 
+     *  echo $api->locale->stringToFloat('1,234.567', 'en_US'); // will return 1234.567
+     *  echo $api->locale->stringToFloat('1.234,567', 'cs_CZ'); // will return 1234.567
+     * 
+     *  echo $api->locale->stringToFloat('1,234', 'en_US'); // will return 1234
+     *  echo $api->locale->stringToFloat('1,234', 'cs_CZ'); // will return 1.234
+     *
+     * @param string $string
+     * @param string|null $fromLang
+     * @return float
+     */
+    public function stringToFloat(string|int|float $string, ?string $fromLang = null): float
+    {
+        global $api;
+
+        if (!is_string($string)) { // already a number or float
+            return $string;
+        }
+
+        if (class_exists('NumberFormatter')) {
+            $fmt = new NumberFormatter($fromLang ?? $api->locale->lang ?? setlocale(LC_NUMERIC, 0), NumberFormatter::DECIMAL);
+            $decimalSeparator = $fmt->getSymbol(NumberFormatter::DECIMAL_SEPARATOR_SYMBOL);
+        } else {
+            $fmt = false;
+            $decimalSeparator = '.';
+        }
+
+        // Remove all chars except digits, decimal separator and minus
+        $string = preg_replace('/[^0-9eE.,-]/', '', $string);
+
+        // Heuristics - we leave just the last comma or dot, as those are for sure the decimal separators
+        $string = preg_replace('/\.(?=.*,)|,(?=.*\.)/', '', $string, count: $count);
+        if ($count) { // last separator is different then previous => must be decimal separator
+            $string = preg_replace('/[.,]/', $decimalSeparator, $string, 1);
+        } elseif (strlen(preg_replace('/[^.,]/', '', $string)) > 1) { // there are at least 2 same separators => it is for sure thousands separator 
+            $string = preg_replace('/[.,]/', '', $string);
+        } elseif (!preg_match('/^\d{1,3}[.,]\d{3}$/', $string)) { // not a thousands separator for sure
+            $string = preg_replace('/[.,]/', $decimalSeparator, $string, 1);
+        } // else we have one separator and it can be both decimal or thousands separator - let's decide the current locale
+
+        return $fmt ? $fmt->parse($string) : floatval($string);
     }
 
     /**
