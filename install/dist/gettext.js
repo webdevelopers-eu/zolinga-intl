@@ -34,16 +34,21 @@ let data;
 if (lang == 'en-US') {
     data = {};
 } else {
-     data = await fetch(`/dist/${domain}/locale/${lang}.json`).then(response => response.json());
+    data = await fetch(`/dist/${domain}/locale/${lang}.json`)
+        .then(response => response.json())
+        .catch(() => {
+            console.error(`ZOLINGA GETTEXT: Catalog for domain ${domain} lang ${lang} not found. Using en-US.`);
+            return false;
+        });
 }
 
 // It wants only lang code...
-const intl = i18n({ 
-    "domain": domain, 
+const intl = i18n({
+    "domain": domain,
     "locale": lang.slice(0, 2),
     "plural_forms": "nplurals=2; plural=(n != 1);"
 });
-intl.loadJSON(data, domain);
+if (data) intl.loadJSON(data, domain);
 
 export default intl;
 
