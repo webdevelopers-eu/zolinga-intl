@@ -32,7 +32,7 @@ if (!domain) {
 // Download catalog from ${domain}/locale/${lang}
 let data;
 if (lang == 'en-US') {
-    data = {};
+    data = false;
 } else {
     data = await fetch(`/dist/${domain}/locale/${lang}.json`)
         .then(response => response.json())
