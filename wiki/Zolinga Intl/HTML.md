@@ -53,25 +53,25 @@ bin/zolinga gettext:extract --module=MyModule
 
 This will generate `{MODULE}/locale/{language}_{TERRIRORY}.po` files with the translatable strings. You need to translate the strings in these files and
 then run the `bin/zolinga gettext:compile [--module={MODULE}]` command to generate the translated HTML files. After running the compilation command,
-the translated HTML files will be created with `*.{langugage}_{TERRITORY}.html` suffix in the same directory as source HTML files.
+the translated HTML files will be created with `*.{langugage}-{TERRITORY}.html` suffix in the same directory as source HTML files.
 
 Example:
 
 ```
 📁 MyModule
     📁 locale
-        📄 cs_CZ.po // conrains strings for translation
+        📄 cs_CZ.po // contains strings for translation
         📄 fr_FR.po // contains strings for translation
     📁 install
         📁 dist
             📄 index.html // source file with <meta name="gettext" content="translate"/>
-            📄 index.cs_CZ.html // auto-generated translation 
-            📄 index.fr_FR.html // auto-generated translation
+            📄 index.cs-CZ.html // auto-generated translation 
+            📄 index.fr-FR.html // auto-generated translation
 ```
 
 # Maintaining and Updating Translations
 
-When the translated `*.{langugage}_{TERRITORY}.html` files are generated they have `<meta name="gettext" content="replace"/>` element in the `<head>` section. This element tells system to remove the file and generate a new one with the latest translations. This means that you should not do any manual changes to the translated files, because they will be overwritten by the next compilation.
+When the translated `*.{langugage}-{TERRITORY}.html` files are generated they have `<meta name="gettext" content="replace"/>` element in the `<head>` section. This element tells system to remove the file and generate a new one with the latest translations. This means that you should not do any manual changes to the translated files, because they will be overwritten by the next compilation.
 
 If you need to manually maintain the translated file, you should remove the `<meta name="gettext" content="replace"/>` element from the `<head>` section. This will prevent the file from being overwritten by the next compilation. It also means that you will need to manually update the file with the latest translations.
 
