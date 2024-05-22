@@ -105,3 +105,6 @@ Note that the `gettext` attributes in the translated file have `\#HASH` suffixes
 
 _Warning_: If you modify the master HTML file, the cherry-picked HTML files will not be updated automatically. E.g. if you add CSS styles or images, they will not be added to the translated files. You will need to manually update the translated files. The `<meta name="gettext" content="replace"/>` is the best option for most cases as it regenerates the whole file and keeps it up to date with the master file.
 
+# Web Components Support
+
+If you want to load localized HTML layouts when using `/dist/system/js/web-component.js` [Web Component](:Zolinga Core:Web Components:WebComponent Class)'s `loadContent()` methods in you JS files, you can use the `/dist/zolinga-intl/js/web-component-intl.js` module instead. It extends the `WebComponent` class with the ability to load localized HTML files automatically.
