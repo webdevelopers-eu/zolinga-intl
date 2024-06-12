@@ -298,12 +298,19 @@ enum CountryEnum: int
         self::SE,
     ];
 
+    const EM = self::EU; // European Market - EUIPO TmView uses this as a filter that has all 27 EU states
+
     const EFTA = [
-        ...self::EU,
         self::IS,
         self::LI,
         self::NO,
         self::CH,
+    ];
+
+    const BX = [ // Benelux
+        self::BE,
+        self::NL,
+        self::LU,
     ];
 
     /**
@@ -336,7 +343,7 @@ enum CountryEnum: int
             return self::from($country);
         }
 
-        return self::fromCode($country);
+        return self::fromKey($country);
     }
 
     /**
@@ -344,21 +351,22 @@ enum CountryEnum: int
      * 
      * Example:
      * 
-     * CountryEnum::fromCode('CZ') === CountryEnum::CZ
+     * CountryEnum::fromKey('CZ') === CountryEnum::CZ
      *
-     * @param string $code
+     * @param string $key
      * @return CountryEnum
      * @throws \InvalidArgumentException
      */
-    static public function fromCode(string $code): CountryEnum {
-        $code = strtoupper($code);
-        $obj = constant("self::$code");
+    static public function fromKey(string $key): self
+    {
+        $key = strtoupper($key);
+        // Other solution is cycle self::cases() 
+        $obj = constant("self::$key");
 
-        if (!($obj instanceof CountryEnum)) {
-            throw new \InvalidArgumentException("Country code '$code' not found.");
+        if (!($obj instanceof self)) {
+            throw new \InvalidArgumentException("Country code '$key' not found.");
         }
-        
-        // Other solution is cycle self::cases() and compare $code with $country->name
+
         return $obj;
     }
 
