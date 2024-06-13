@@ -313,6 +313,16 @@ enum CountryEnum: int
         self::LU,
     ];
 
+
+    /**
+     * Return all country codes.
+     * 
+     * @return array<string> Return list of 2-letter country codes.
+     */
+    static public function getCountryCodesAll(): array {
+        return array_map(fn($c) => $c->name, self::cases());
+    }
+
     /**
      * Return human-friendly name of the country.
      *
@@ -359,15 +369,17 @@ enum CountryEnum: int
      */
     static public function fromKey(string $key): self
     {
+        $ret = self::tryFromKey($key)
+            or throw new \InvalidArgumentException("Country code '$key' not found.");
+        return $ret;
+    }
+    
+    static public function tryFromKey(string $key): ?self {
         $key = strtoupper($key);
         // Other solution is cycle self::cases() 
+        if (!defined("self::$key")) return null; 
         $obj = constant("self::$key");
-
-        if (!($obj instanceof self)) {
-            throw new \InvalidArgumentException("Country code '$key' not found.");
-        }
-
-        return $obj;
+        return  $obj instanceof self ? $obj : null;
     }
 
     public function getIconURL(): string
