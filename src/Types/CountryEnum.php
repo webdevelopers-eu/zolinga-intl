@@ -313,7 +313,6 @@ enum CountryEnum: int
         self::LU,
     ];
 
-
     /**
      * Return all country codes.
      * 
@@ -382,17 +381,31 @@ enum CountryEnum: int
         return  $obj instanceof self ? $obj : null;
     }
 
+    static private function getData(): array {
+        global $api;
+        static $data = null;
+
+        if ($data === null) {
+            $data = $api->db->query("SELECT cc, id, price, supported FROM ipdCountries WHERE supported=1;")->fetchKeyValueAll();
+        }
+        return $data;
+    }
+
+    public function isSupported(): bool
+    {
+        $data = self::getData();
+        if (!isset($data[$this->name])) {
+            return false;
+        }
+        return (bool) $data[$this->name]['supported'];
+    }
+
     public function getPrice(): float 
     {
-        global $api;
-        static $prices = null; 
+        $prices = self::getData();
 
-        if (!isset($prices)) {
-            $prices = $api->db->query("SELECT cc, id, price FROM ipdCountries;")->fetchKeyValueAll();
-        }
-
-        if (!is_array($prices[$this->name])) {
-            throw new \InvalidArgumentException("Price for country {$this->name} not found.");
+        if (!is_array($prices[$this->name] ?? null)) {
+            return 0;
         }
 
         if ($this->value !== $prices[$this->name]['id']) {
