@@ -382,6 +382,26 @@ enum CountryEnum: int
         return  $obj instanceof self ? $obj : null;
     }
 
+    public function getPrice(): float 
+    {
+        global $api;
+        static $prices = null; 
+
+        if (!isset($prices)) {
+            $prices = $api->db->query("SELECT cc, id, price FROM ipdCountries;")->fetchKeyValueAll();
+        }
+
+        if (!is_array($prices[$this->name])) {
+            throw new \InvalidArgumentException("Price for country {$this->name} not found.");
+        }
+
+        if ($this->value !== $prices[$this->name]['id']) {
+            throw new \InvalidArgumentException("Country ID mismatch for {$this->name}. Expected {$this->value}, got {$prices[$this->name]['id']}.");
+        }
+
+        return (float) $prices[$this->name]['price'];
+    }
+
     public function getIconURL(): string
     {
         return "/dist/zolinga-commons/images/countries/" . strtolower($this->name) . ".svg";
