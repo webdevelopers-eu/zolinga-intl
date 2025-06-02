@@ -333,6 +333,26 @@ enum CountryEnum: int
     }
 
     /**
+     * Return list of groups this country belongs to (e.g. EU, EFTA, BX).
+     *
+     * @return array<string>
+     */
+    public function getGroups(): array
+    {
+        $groups = [];
+        if (in_array($this, self::EU)) {
+            $groups[] = "EU";
+        }
+        if (in_array($this, self::EFTA)) {
+            $groups[] = "EFTA";
+        }
+        if (in_array($this, self::BX)) {
+            $groups[] = "BX";
+        }
+        return $groups;
+    }
+
+    /**
      * Convert one or many country codes to CountryEnum.
      *
      * @param array|integer|string|CountryEnum $country
