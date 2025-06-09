@@ -10,17 +10,19 @@ Syntax:
 dgettext(string $domain, string $message): string
 dngettext(string $domain, string $singular, string $plural, int $count): string
 ```
-
 - `$domain` - This your module (folder) name. The domain is used to separate translations for different modules.
 - `$message` - The string to translate.
 - `$singular` - The singular form of the string to translate.
 - `$plural` - The plural form of the string to translate.
 - `$count` - The number of items to translate. This is used to determine which form of the string to use - singular or plural.
 
+
+You may use context separator constant: `GETTEXT_CTX_END` (`"\x04"`) to separate the context from the message. This is useful when you have multiple translations for the same string in different contexts.
+
 Example:
 
 ```php
-echo dgettext('my-module', 'Hello, world!');
+echo dgettext('my-module', 'Welcome message' . GETTEXT_CTX_END . 'Hello, world!');
 ```
 
 The `dgettext` function will look for the translation of the string `Hello, world!` in the prepared dictionary for `my-module` domain and return the translated string. 
