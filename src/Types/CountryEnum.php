@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Zolinga\Intl\Types;
 
-use Ipd\Base\Util;
-
 /**
  * This is a complete list of all country ISO codes as described in the ISO 3166 international standard.
  * 
@@ -402,64 +400,6 @@ enum CountryEnum: int
         $obj = constant("self::$key");
         return  $obj instanceof self ? $obj : null;
     }
-
-    static private function getData(): array {
-        global $api;
-        static $data = null;
-
-        if ($data === null) {
-            $data = $api->db->query("
-                SELECT c.cc, c.id, p.price, c.supported 
-                FROM ipdCountries as c
-                LEFT JOIN ipdPrices as p ON c.priceId = p.id 
-                WHERE c.supported=1;
-            ")->fetchKeyValueAll();
-            $data = array_map(function($item) {
-                return [
-                    'id' => $item['id'],
-                    'price' => (int) $item['price'],
-                    'supported' => (bool) $item['supported']
-                ];
-            }, $data);
-        }
-        return $data;
-    }
-
-    public function isSupported(): bool
-    {
-        $data = self::getData();
-        if (!isset($data[$this->name])) {
-            return false;
-        }
-        return (bool) $data[$this->name]['supported'];
-    }
-
-    // Important: Price is multiplied by 10 ** Util::CURRENCY_PRECISION_INTERNAL
-    public function getPrice(): int 
-    {
-        $prices = self::getData();
-
-        if (!is_array($prices[$this->name] ?? null)) {
-            return 0;
-        }
-
-        if ($this->value !== $prices[$this->name]['id']) {
-            throw new \InvalidArgumentException("Country ID mismatch for {$this->name}. Expected {$this->value}, got {$prices[$this->name]['id']}.");
-        }
-
-        return $prices[$this->name]['price'];
-    }
-
-    public function getPriceReal(): float
-    {
-        $price = $this->getPrice();
-        return $price / (10 ** Util::CURRENCY_PRECISION_INTERNAL);
-    }
-    /**
-     * Get URL to the country icon.
-     *
-     * @return string
-     */
 
     public function getIconURL(): string
     {
