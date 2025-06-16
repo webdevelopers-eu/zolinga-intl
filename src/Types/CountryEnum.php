@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Zolinga\Intl\Types;
 
+use Ipd\Base\Util;
+
 /**
  * This is a complete list of all country ISO codes as described in the ISO 3166 international standard.
  * 
@@ -406,7 +408,19 @@ enum CountryEnum: int
         static $data = null;
 
         if ($data === null) {
-            $data = $api->db->query("SELECT cc, id, price, supported FROM ipdCountries WHERE supported=1;")->fetchKeyValueAll();
+            $data = $api->db->query("
+                SELECT c.cc, c.id, p.price, c.supported 
+                FROM ipdCountries as c
+                LEFT JOIN ipdPrices as p ON c.priceId = p.id 
+                WHERE c.supported=1;
+            ")->fetchKeyValueAll();
+            $data = array_map(function($item) {
+                return [
+                    'id' => $item['id'],
+                    'price' => (int) $item['price'],
+                    'supported' => (bool) $item['supported']
+                ];
+            }, $data);
         }
         return $data;
     }
@@ -420,7 +434,8 @@ enum CountryEnum: int
         return (bool) $data[$this->name]['supported'];
     }
 
-    public function getPrice(): float 
+    // Important: Price is multiplied by 10 ** Util::CURRENCY_PRECISION_INTERNAL
+    public function getPrice(): int 
     {
         $prices = self::getData();
 
@@ -432,8 +447,19 @@ enum CountryEnum: int
             throw new \InvalidArgumentException("Country ID mismatch for {$this->name}. Expected {$this->value}, got {$prices[$this->name]['id']}.");
         }
 
-        return (float) $prices[$this->name]['price'];
+        return $prices[$this->name]['price'];
     }
+
+    public function getPriceReal(): float
+    {
+        $price = $this->getPrice();
+        return $price / (10 ** Util::CURRENCY_PRECISION_INTERNAL);
+    }
+    /**
+     * Get URL to the country icon.
+     *
+     * @return string
+     */
 
     public function getIconURL(): string
     {
