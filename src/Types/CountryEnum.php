@@ -7,7 +7,7 @@ namespace Zolinga\Intl\Types;
 /**
  * This is a complete list of all country ISO codes as described in the ISO 3166 international standard.
  * 
- * Supports constants CountriesEnum::EU and CountriesEnum::EFTA.
+ * Supports constants CountryEnum::EU and CountryEnum::EFTA.
  * 
  * 
  * @see https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2
@@ -341,13 +341,13 @@ enum CountryEnum: int
     {
         $groups = [];
         if (in_array($this, self::EU)) {
-            $groups[] = "EU";
+            $groups[] = CountryGroupsEnum::EU->value;
         }
         if (in_array($this, self::EFTA)) {
-            $groups[] = "EFTA";
+            $groups[] = CountryGroupsEnum::EFTA->value;
         }
         if (in_array($this, self::BX)) {
-            $groups[] = "BX";
+            $groups[] = CountryGroupsEnum::BX->value;
         }
         return $groups;
     }
