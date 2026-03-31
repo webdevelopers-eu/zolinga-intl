@@ -34,6 +34,7 @@
             ]
         }
     ],
+    "emit": [],
     "autoload": {
         "Zolinga\\Intl\\": "src/"
     },
