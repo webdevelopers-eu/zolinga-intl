@@ -1,6 +1,6 @@
 {
     "name": "Zolinga Internationalization",
-    "version": "1.0",
+    "version": "1.1",
     "description": "Provides internationalization support for Zolinga applications.",
     "authors": [
         "Daniel Sevcik <danny@zolinga.net>"
@@ -11,6 +11,23 @@
             "description": "Provides internationalization services and information about locale.",
             "service": "locale",
             "class": "Zolinga\\Intl\\LocaleService",
+            "origin": [
+                "internal"
+            ]
+        },
+        {
+            "description": "Provides AI-powered translation service.",
+            "service": "translator",
+            "class": "Zolinga\\Intl\\TranslatorService",
+            "origin": [
+                "internal"
+            ]
+        },
+        {
+            "description": "Handles completed async AI translations and dispatches the callback TranslateEvent.",
+            "event": "i18n:translation:done",
+            "class": "Zolinga\\Intl\\TranslatorService",
+            "method": "onTranslation",
             "origin": [
                 "internal"
             ]
@@ -43,6 +60,13 @@
             "locales": [
                 "en_US"
             ]
+        },
+        "ai": {
+            "backends": {
+                "translator": {
+                    "model": "translategemma"
+                }
+            }
         }
     }
 }
