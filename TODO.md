@@ -52,16 +52,21 @@ class GettextDomain {
     public function __construct(
         public readonly string $name,                    // e.g. 'acme-module', 'default', 'system'
         public readonly string $serverOutput,            // path for .pot/.po/.mo files (PHP + HTML)
-        public readonly string $clientJsonOutput,        // path for JS .json dictionaries
+        public readonly string $clientJsonFile,          // path for JS .json dictionaries
         public readonly array $folders = [],             // absolute paths to scan
         public readonly int $fileTypes = FileTypes::ALL,
     ) {}
+
+    public string $serverPotFile { get => $this->serverOutput . '/templates/server.pot'; }
+    public string $clientPotFile { get => $this->serverOutput . '/templates/client.pot'; }
+    public string $staticPotFile { get => $this->serverOutput . '/templates/static.pot'; }
+    public string $messagesPotFile { get => $this->serverOutput . '/messages.pot'; }
 }
 ```
 
 **Default paths per domain type:**
 
-| Domain | `serverOutput` | `clientJsonOutput` |
+| Domain | `serverOutput` | `clientJsonFile` |
 |--------|---------------|-------------------|
 | Module (e.g. `acme-module`) | `./modules/acme-module/locale/` | `./modules/acme-module/install/dist/locale/` |
 | `default` | `./data/zolinga-intl/default/locale/` | `./public/data/zolinga-intl/default/locale/` |
