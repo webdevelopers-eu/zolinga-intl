@@ -45,14 +45,14 @@ Examples:
 
 # Translation Workflow
 
-To extract the translatable strings from the HTML file, you need to run the `bin/zolinga gettext:extract [--module={MODULE}]` command.
+To extract the translatable strings from the HTML file, you need to run the `bin/zolinga gettext:extract [--domains={DOMAINS}]` command.
 
 ```bash
-bin/zolinga gettext:extract --module=MyModule
+bin/zolinga gettext:extract --domains=MyModule
 ```
 
 This will generate `{MODULE}/locale/{language}_{TERRIRORY}.po` files with the translatable strings. You need to translate the strings in these files and
-then run the `bin/zolinga gettext:compile [--module={MODULE}]` command to generate the translated HTML files. After running the compilation command,
+then run the `bin/zolinga gettext:compile [--domains={DOMAINS}]` command to generate the translated HTML files. After running the compilation command,
 the translated HTML files will be created with `*.{langugage}-{TERRITORY}.html` suffix in the same directory as source HTML files.
 
 Example:

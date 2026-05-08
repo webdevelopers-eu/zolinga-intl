@@ -1,8 +1,11 @@
 # @todo remove: Temporary during Intl development
-locale/
+/locale/
 *.??-??.*
+??-??.json
+*.pot
+*.po
 
 
 *~
 tmp/
-install/dist/test
+/install/dist/test

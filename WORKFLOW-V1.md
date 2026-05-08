@@ -5,11 +5,11 @@ Overview of the `gettext:extract` and `gettext:compile` pipelines in the Zolinga
 Both commands are triggered via CLI:
 
 ```bash
-bin/zolinga gettext:extract [--module=MODULE_NAME]
-bin/zolinga gettext:compile [--module=MODULE_NAME]
+bin/zolinga gettext:extract [--domains=DOMAIN_NAMES]
+bin/zolinga gettext:compile [--domains=DOMAIN_NAMES]
 ```
 
-Omitting `--module` processes all modules that have a `locale/` directory.
+`--domains` accepts a comma-separated list of domain names (e.g. `--domains=mod1,mod2`). Omitting `--domains` processes all gettext domains (module domains plus the built-in `default` domain).
 
 Handler: `Zolinga\Intl\GettextCli` (`modules/zolinga-intl/src/GettextCli.php`)
 

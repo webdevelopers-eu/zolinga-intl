@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Zolinga\Intl\Gettext;
 
-use Zolinga\Intl\GettextCli;
+use Zolinga\Intl\Types\FileTypes;
+use const Zolinga\System\ROOT_DIR;
 
 /**
  * Abstract class for gettext operations.
@@ -14,6 +15,8 @@ use Zolinga\Intl\GettextCli;
  */
 class GettextAbstract
 {
+
+
     /**
      * The regular expression to match the gettext tag: {domain}:{keyword}#{hash}
      * 
@@ -29,6 +32,13 @@ class GettextAbstract
     protected const EXCLUDE_FILES = ['*/vendor/*', '*/tmp/*', '*/.*'];
 
     /**
+     * File extensions to ignore when scanning for files.
+     * 
+     * @var array<string>
+     */
+    protected const IGNORED_EXTENSIONS = ['*~', '*.bak', '*.orig', '*.swp'];
+
+    /**
      * The name of the HTML attribute to translate.
      * 
      * @var string
@@ -36,130 +46,134 @@ class GettextAbstract
     protected const MARKUP_NAME = 'gettext';
 
     /**
-     * The source directory where the source files are located.
+     * The gettext domain descriptor.
      *
-     * @var string
+     * @var GettextDomain
      */
-    public readonly string $modulePath;
+    public readonly GettextDomain $domain;
 
     /**
-     * The module name
-     * 
-     * @var string $moduleName 
-     */
-    public readonly string $moduleName;
-
-    /**
-     * The location of POT file.
-     *
-     * @var string
-     */
-    public readonly string $potFile;
-
-    /**
-     * The locales to process. Combination of locales from LINGUA file and supported locales.
+     * The locales to process. Combination of supported locales, en_US, and existing .po files.
      *
      * @var array<string> of locales in format 'en_US', 'cs_CZ', ...
      */
     public readonly array $locales;
 
-    /**
-     * Gettext domain
-     * 
-     * @var string
-     */
-    public readonly string $domain;
-
-    public function __construct(string $modulePath)
+    public function __construct(GettextDomain $domain)
     {
         global $api;
 
-        $this->modulePath = $modulePath;
-        $this->moduleName = (string) parse_url($api->fs->toZolingaUri($modulePath), PHP_URL_HOST) 
-            or  throw new \RuntimeException("Cannot parse module name from $modulePath");
-        $this->domain = basename($modulePath);
+        $this->domain = $domain;
         $this->checkRequirements();
-
-        $this->potFile = $this->modulePath . "/locale/messages.pot";
-
-        if (!is_file($this->potFile)) {
-            file_put_contents($this->potFile, "msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\"Language: en\\n\"\n\n")
-                or die("Cannot write to file: " . $this->potFile);
-        }
-
-        if (!is_file($this->modulePath . "/locale/LINGUAS")) {
-            file_put_contents($this->modulePath . "/locale/LINGUAS", implode("\n", $api->locale->supportedLocales) . "\n")
-                or die("Cannot create file: " . $this->modulePath . "/locale/LINGUAS");
-        }
 
         $this->locales = array_unique([
             ...$api->locale->supportedLocales,
-            ...array_filter(array_map('trim', explode("\n", trim(file_get_contents($this->modulePath . "/locale/LINGUAS") ?: '')))),
-            "en_US"
+            'en_US',
+            ...$this->findExistingPoLocales($domain->serverOutput),
         ]);
+    }
+
+    /**
+     * Find locales that already have .po files in the server output directory.
+     *
+     * @param string $serverOutput
+     * @return array<string>
+     */
+    private function findExistingPoLocales(string $serverOutput): array
+    {
+        $locales = [];
+        foreach (glob($serverOutput . '/*.po') ?: [] as $file) {
+            $locales[] = basename($file, '.po');
+        }
+        return $locales;
     }
 
     /**
      * Check the requirements for the gettext operations.
      *
-     * @throw \Exception if the source directory does not exist or is not writable.
-     * @throw \RuntimeException if the gettext extension is not loaded or the required commands are not executable.
+     * @throws \RuntimeException if requirements are not met.
      * @return void
      */
-    private function checkRequirements()
+    private function checkRequirements(): void
     {
         global $api;
 
-        if (!is_dir($this->modulePath)) {
-            throw new \Exception("The gettext directory does not exist: " . $this->modulePath);
+        foreach ($this->domain->folders as $folder) {
+            if (!is_dir($folder)) {
+                throw new \RuntimeException("The source directory does not exist: " . $folder);
+            }
+            if (!is_readable($folder)) {
+                throw new \RuntimeException("The source directory is not readable: " . $folder);
+            }
         }
 
-        $path = $this->modulePath . "/locale";
+        $path = $this->domain->serverOutput;
         if (!is_dir($path)) {
-            throw new \Exception("The gettext directory does not exist: " . $path);
+            $api->log->info('i18n', "Creating gettext directory: $path");
+            mkdir($path, 0777, true) or throw new \RuntimeException("Cannot create gettext directory: " . $path);
+        }
+        if (!is_dir($path)) {       
+            throw new \RuntimeException("The gettext directory does not exist: " . $path);
         }
         if (!is_writable($path)) {
-            throw new \Exception("The gettext directory is not writable: " . $path);
+            throw new \RuntimeException("The gettext directory is not writable: " . $path);
         }
         if (!is_readable($path)) {
-            throw new \Exception("The source directory is not readable: " . $path);
+            throw new \RuntimeException("The gettext directory is not readable: " . $path);
         }
-        foreach (['msginit', 'msgmerge', 'msgfmt'] as $cmd) {
-            $cmdReal = trim((string) shell_exec("which $cmd")) 
-                or throw new \RuntimeException("The command $cmd is not found.");
+
+        foreach (['msginit', 'msgmerge', 'msgfmt', 'msgcat'] as $cmd) {
+            $cmdReal = trim((string) shell_exec("which $cmd"));
+            if (!$cmdReal) {
+                throw new \RuntimeException("The command $cmd is not found.");
+            }
             if (!is_executable($cmdReal)) {
                 throw new \RuntimeException("The command $cmd is not executable.");
             }
         }
+
         if (!extension_loaded('gettext')) {
             throw new \RuntimeException("The gettext extension is not loaded.");
         }
     }
 
     /**
-     * All patterns are matched against the relative path of the file inside the source directory.
-     * The matched path starts with "./" . The patterns are matched using the fnmatch function.
+     * Find files matching the given file type bitmask across all domain folders.
      *
-     * @param array<string> $include The list of patterns to include.
-     * @param array<string> $exclude The list of patterns to exclude.
-     * @return array<string> The list of files matching the include and exclude patterns.
+     * Ignores dot-files and backup extensions. Deduplicates results.
+     *
+     * @param int $fileTypes Bitmask of FileTypes constants
+     * @param array<string> $exclude Patterns to exclude
+     * @return array<string> Absolute file paths
      */
-    protected function findFiles(array $include, array $exclude = self::EXCLUDE_FILES): array
+    protected function findFiles(int $fileTypes, array $exclude = self::EXCLUDE_FILES): array
     {
+        $globs = FileTypes::getGlobs($fileTypes);
         $files = [];
 
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($this->modulePath, \FilesystemIterator::CURRENT_AS_SELF)
-        );
+        foreach ($this->domain->folders as $folder) {
+            if (!is_dir($folder)) {
+                continue;
+            }
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($folder, \FilesystemIterator::CURRENT_AS_SELF | \FilesystemIterator::SKIP_DOTS)
+            );
 
-        foreach ($iterator as $file) {
-            $path = "./" . $file->getSubPathname();
-            if ($this->fnMatch($include, $path) && !$this->fnMatch($exclude, $path)) {
-                $files[] = $file->getPathname();
+            foreach ($iterator as $file) {
+                $path = "./" . $file->getSubPathname();
+
+                // Skip ignored extensions
+                if ($this->fnMatch(self::IGNORED_EXTENSIONS, $path)) {
+                    continue;
+                }
+
+                if ($this->fnMatch($globs, $path) && !$this->fnMatch($exclude, $path)) {
+                    $files[] = $file->getPathname();
+                }
             }
         }
 
-        return $files;
+        return array_unique($files);
     }
 
     /**
@@ -181,19 +195,18 @@ class GettextAbstract
 
     protected function exec(string $cmd, string $message): string|null|false
     {
-        $cwd = getcwd() or throw new \RuntimeException("Cannot get current working directory");
-        chdir($this->modulePath);
+        global $api;
 
-        // echo " * Running: \033[0;32m " . str_replace("\033", "\\033", $cmd) . "\033[0m\n";
+        $cwd = getcwd() ?: throw new \RuntimeException("Cannot get current working directory");
+        chdir(ROOT_DIR);
 
-        // Redirect stderr on stdout and indent it:
-        // Exec $cmd command and capture stderr and stdout
+        $api->log->info('i18n', "🛠️ " . substr($cmd, 0, 127) . (strlen($cmd) > 127 ? "..." : ""), ["cmd" => $cmd]);
         $output = shell_exec($cmd);
 
         if (is_string($output) || is_null($output)) {
-            GettextCli::log("⚡ $message");
+            $api->log->info('i18n', " ┃ $message");
         } else {
-            GettextCli::log("🔴 ERROR: $cmd output is " . json_encode($output));
+            $api->log->error('i18n', " ┃ $cmd output is " . json_encode($output));
         }
 
         chdir($cwd);
@@ -253,16 +266,18 @@ class GettextAbstract
     /**
      * Parse @gettext attribute and return array of [domain, keyword, hash].
      *
-     * @param string $tags of white space seaparated tags in format [domain:](attribute|.)[#hash]
+     * @param string $tags of white space separated tags in format [domain:](attribute|.)[#hash]
      * @return array<string, array{domain: ?string, keyword: string, hash: ?string}> of tag => [domain, keyword, hash]
      */
     protected function parseGettextAttr(string $tags): array
     {
+        global $api;
+
         $list = [];
 
         foreach (preg_split('/\s+/', $tags) ?: [] as $tag) {
             if (!preg_match(self::TAG_RE, $tag, $matches)) {
-                GettextCli::log("🔴 ERROR: Invalid gettext tag: $tag");
+                $api->log->error('i18n', "Invalid gettext tag: $tag");
                 continue;
             }
             $list[$tag] = [

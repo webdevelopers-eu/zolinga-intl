@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Zolinga\Intl\Gettext;
 
 use DOMDocument;
-use Zolinga\Intl\GettextCli;
+use Zolinga\Intl\Types\FileTypes;
+use const Zolinga\System\ROOT_DIR;
 
 /**
  * Compile language po files and translate html files to the supported locales.
@@ -25,44 +26,85 @@ class Compiler extends GettextAbstract
     {
         global $api;
 
-        GettextCli::log("📦 Compiling gettext strings in $this->modulePath for locales: " . implode(', ', $this->locales));
+        $api->log->info('i18n', "📦 Compiling gettext strings in {$this->domain->name} for locales: " . implode(', ', $this->locales));
         $this->compileLanguagePoFiles();
-        $api->locale->initGettext();
+        $this->compileStaticPoFiles();
+        $api->locale->initGettext('.static');
         $this->translateHtmlFiles();
     }
 
     /**
-     * Compile language po files from the pot file.
+     * Compile language po files: msgmerge with server.pot → temporary .po → msgfmt → .mo.
      *
      * @return void
      */
     private function compileLanguagePoFiles(): void
     {
-        foreach ($this->locales as $lang) {
-            $poFile = $this->modulePath . "/locale/$lang.po";
-            $moFile = $this->modulePath . "/locale/$lang/LC_MESSAGES/{$this->domain}.mo";
+        global $api;
+
+        foreach ($this->domain->localesWithPO as $lang) {
+            $api->log->info('i18n', "🈳 Compiling locale $lang...");
+            $poFile = $this->domain->serverOutput . "/$lang.po";
+            if (!is_file($poFile) || !is_readable($poFile)) {
+                $api->log->warning('i18n', "PO file not found or not readable for locale $lang: $poFile. Skipping compilation for this locale.");
+                continue;
+            }
+
+            $moFile = $this->domain->serverOutput . "/$lang/LC_MESSAGES/{$this->domain->name}.mo";
             if (!is_dir(dirname($moFile))) {
                 mkdir(dirname($moFile), 0777, true) or throw new \RuntimeException("Cannot create directory " . dirname($moFile));
             }
 
-            // The fuzzy flag problem
-            // $cmd = "msgattrib --no-fuzzy -o ".escapeshellarg($poFile)." ".escapeshellarg($poFile);
-            // $this->exec($cmd);
+            $tmpPo = tempnam(sys_get_temp_dir(), "{$this->domain->name}.$lang.server.") . '.po';
+            $this->exec(
+                "msgmerge --no-fuzzy-matching " . escapeshellarg($poFile) . " " . escapeshellarg($this->domain->serverPotFile) . " -o " . escapeshellarg($tmpPo) . " 2>&1",
+                "Merging $poFile with server.pot (msgmerge)"
+            );
+            $this->exec(
+                "msgfmt " . escapeshellarg($tmpPo) . " --strict -o " . escapeshellarg($moFile) . " 2>&1",
+                "Compiling $tmpPo to $moFile (msgfmt)"
+            );
+            unlink($tmpPo);
 
-            $cmd = "msgfmt " . escapeshellarg($poFile) . " --strict -o " . escapeshellarg($moFile);
-            $this->exec("$cmd 2>&1", "Compiling $poFile to $moFile (msgfmt)");
-
-            // Warn about fuzzy translations
-            // awk '/^msgstr/ {FUZZY=0} FUZZY == 1 {print "    [0;31m- FUZZY:" $0 "[0m"} /^#,.*fuzzy/ {FUZZY=1}' "$poFile"
             if (!is_file($moFile)) {
-                GettextCli::log("🔴 ERROR: $moFile not created");
+                $api->log->error('i18n', "$moFile not created");
             }
 
             // List #, fuzzy records
             $contents = (string) file_get_contents($poFile);
             if (strpos($contents, 'fuzzy') !== false) {
-                GettextCli::log("🔴 ERROR: $poFile contains fuzzy translations. Reveiew the translations marked with 'fuzzy' keyword and remove the 'fuzzy' keyword from the translations that are correct.");
+                $api->log->error('i18n', "$poFile contains fuzzy translations. Review the translations marked with 'fuzzy' keyword and remove the 'fuzzy' keyword from the translations that are correct.");
             }
+        }
+    }
+
+    /**
+     * Compile static po files: msgmerge with static.pot → temporary .po → msgfmt → .static.mo.
+     *
+     * @return void
+     */
+    private function compileStaticPoFiles(): void
+    {
+        global $api;
+
+        foreach ($this->domain->localesWithPO as $lang) {
+            $api->log->info('i18n', "🈳 Compiling static strings for locale $lang...");
+            $poFile = $this->domain->serverOutput . "/$lang.po";
+            $moFile = $this->domain->serverOutput . "/$lang/LC_MESSAGES/{$this->domain->name}.static.mo";
+            if (!is_dir(dirname($moFile))) {
+                mkdir(dirname($moFile), 0777, true) or throw new \RuntimeException("Cannot create directory " . dirname($moFile));
+            }
+
+            $tmpPo = tempnam(sys_get_temp_dir(), "{$this->domain->name}.$lang.static.") . '.po';
+            $this->exec(
+                "msgmerge --no-fuzzy-matching " . escapeshellarg($poFile) . " " . escapeshellarg($this->domain->staticPotFile) . " -o " . escapeshellarg($tmpPo) . " 2>&1",
+                "Merging $poFile with static.pot (msgmerge)"
+            );
+            $this->exec(
+                "msgfmt " . escapeshellarg($tmpPo) . " --strict -o " . escapeshellarg($moFile) . " 2>&1",
+                "Compiling $tmpPo to $moFile (msgfmt)"
+            );
+            unlink($tmpPo);
         }
     }
 
@@ -75,14 +117,15 @@ class Compiler extends GettextAbstract
     {
         global $api;
 
-        $files = $this->findFiles(['*.html'], self::EXCLUDE_FILES);
+        $files = $this->findFiles(FileTypes::HTML, self::EXCLUDE_FILES);
         foreach ($files as $file) {
             if ($this->getGettextMode($file) === 'translate') {
                 ['template' => $templateDoc, 'dictionary' => $dictionary] = $this->buildFileDictionary($file);
 
-                $defaultDomain = parse_url($api->fs->toZolingaUri($file), PHP_URL_HOST) ?: 'messages';
+                $defaultDomain = parse_url($api->fs->toZolingaUri($file), PHP_URL_HOST) ?: 'default';
 
-                foreach ($api->locale->supportedLocales as $locale) {
+                foreach ($this->domain->localesWithPO as $locale) {
+                    $api->log->info('i18n', "🈳 Translating $file to $locale...");
                     if ($locale !== 'en_US') { // default
                         $targetFile = $this->mkFileName($file, $locale);
                         $this->generateHtmlFile($targetFile, $locale, $defaultDomain, $templateDoc, $dictionary);
@@ -115,7 +158,7 @@ class Compiler extends GettextAbstract
 
         switch ($mode) {
             case 'replace':
-                GettextCli::log("📄 Replacing $targetFile ($locale)");
+                $api->log->info('i18n', "📄 Replacing $targetFile ($locale)");
                 $targetDoc = $templateDoc->cloneNode(true);
                 foreach ($targetDoc->getElementsByTagName('meta') as $el) {
                     if ($el->getAttribute('name') === 'gettext') {
@@ -124,11 +167,11 @@ class Compiler extends GettextAbstract
                 }
                 break;
             case 'cherry-pick':
-                GettextCli::log("📝 Cherry-picking $targetFile ($locale)");
+                $api->log->info('i18n', "📝 Cherry-picking $targetFile ($locale)");
                 $targetDoc = $this->loadHtmlFile($targetFile);
                 break;
             default:
-                GettextCli::log("🔴 ERROR: $targetFile: gettext meta not set or invalid in file $targetFile: " . json_encode($mode) . " Expected <meta name='gettext' content='replace|cherry-pick'/>");
+                $api->log->error('i18n', "$targetFile: gettext meta not set or invalid in file $targetFile: " . json_encode($mode) . " Expected <meta name='gettext' content='replace|cherry-pick'/>");
                 return;
         }
         $this->translateHtmlStrings($targetDoc, $dictionary, $defaultDomain);
@@ -145,7 +188,7 @@ class Compiler extends GettextAbstract
      * Dictionary holds keys in the format "DOMAIN:#HASH" => STRID. We use preferably the HASH if it exists in @gettext attribute.
      * 
      * If the $doc @gettext attribute does not have HASH that means that user modified translated document (the "cherry-pick" mode) 
-     * and we need to calculate the HASH from the string. The string is expected to be Enlgish strid initially.
+     * and we need to calculate the HASH from the string. The string is expected to be English strid initially.
      * 
      * It will modify the input $doc.
      *
@@ -155,6 +198,8 @@ class Compiler extends GettextAbstract
      * @return void
      */
     private function translateHtmlStrings(DOMDocument $doc, array $dictionary, string $defaultDomain): void {
+        global $api;
+
         foreach ($this->findTranslatables($doc, true) as $node) {
             $tags = [];
             foreach ($this->parseGettextAttr($node->nodeValue) as $tag => ['domain' => $domain, 'keyword' => $keyword, 'hash' => $hash]) {
@@ -166,12 +211,12 @@ class Compiler extends GettextAbstract
                     $strId = $dictionary["$domain:#$hash"] ?? '';
                 }
                 if (!$strId) {
-                    GettextCli::log("🔴 ERROR: ". $doc->documentURI .": $keyword#$hash not found in dictionary: " . $doc->saveXML($node->ownerElement). " Was the corresponding string removed from the source file? You can copy the missing element from source file into translation file. ");
+                    $api->log->error('i18n', "". $doc->documentURI .": $keyword#$hash not found in dictionary: " . $doc->saveXML($node->ownerElement). " Was the corresponding string removed from the source file? You can copy the missing element from source file into translation file. ");
                     $tags[] = $tag;
                     continue;
                 }
-                $translated = dgettext($domain ?: $defaultDomain, $strId);
-                // echo "🔵 $targetFile: domain=$domain, defaultDomain=$defaultDomain, keyword=$keyword, hash=$hash, lang={$api->locale->lang}: $strId -> $translated\n";
+                $resolvedDomain = $domain ?: $defaultDomain;
+                $translated = dgettext($resolvedDomain . '.static', $strId);
 
                 if ($keyword == '.') {
                     $node->ownerElement->nodeValue = $translated;
@@ -195,13 +240,15 @@ class Compiler extends GettextAbstract
      */
     private function buildFileDictionary($file): array
     {
+        global $api;
+
         $doc = $this->loadHtmlFile($file);
         $dictionary = [];
         foreach ($this->findTranslatables($doc) as $node) {
             $tags = [];
             foreach ($this->parseGettextAttr($node->nodeValue) as ['domain' => $domain, 'keyword' => $keyword, 'hash' => $hash]) {
                 if ($hash) {
-                    GettextCli::log("🔴 ERROR: $file: $keyword already translated in source $file: " . $doc->saveXML($node->ownerElement));
+                    $api->log->error('i18n', "$file: $keyword already translated in source $file: " . $doc->saveXML($node->ownerElement));
                     continue;
                 }
                 $string = $this->normalizeString($keyword == '.' ? $node->ownerElement->nodeValue : $node->ownerElement->getAttribute($keyword));

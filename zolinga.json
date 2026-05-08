@@ -1,6 +1,6 @@
 {
     "name": "Zolinga Internationalization",
-    "version": "1.1",
+    "version": "2.0",
     "description": "Provides internationalization support for Zolinga applications.",
     "authors": [
         "Daniel Sevcik <danny@zolinga.net>"
@@ -11,6 +11,14 @@
             "description": "Provides internationalization services and information about locale.",
             "service": "locale",
             "class": "Zolinga\\Intl\\LocaleService",
+            "origin": [
+                "internal"
+            ]
+        },
+        {
+            "description": "Provides gettext domain discovery and i18n workflow services.",
+            "service": "i18n",
+            "class": "Zolinga\\Intl\\I18nService",
             "origin": [
                 "internal"
             ]
@@ -58,7 +66,8 @@
     "config": {
         "intl": {
             "locales": [
-                "en_US"
+                "en_US",
+                "cs_CZ"
             ]
         },
         "ai": {

@@ -7,10 +7,12 @@ This event is a part of the [Zolinga Internationalization](:Zolinga Intl) module
 Usage:
 
 ```bash
-bin/zolinga gettext:compile [--module={MODULE}]
+bin/zolinga gettext:compile [--domains={DOMAINS}]
 ```
 
-When no `--module` option is provided, the command compiles translations for all modules.
+`--domains` accepts a comma-separated list of domain names (e.g. `--domains=system,default`).
+
+When no `--domains` option is provided, the command compiles translations for all domains (module domains plus the built-in `default` domain).
 
 Related:
 - [Gettext Extraction Event](:ref:event:gettext:extract)

@@ -29,7 +29,7 @@ Note, that you don't need to use `dgettext` or `dngettext` functions requiring t
 
 # Preparing Dictionaries
 
-The standard workflow for preparing dictionaries is the same as for PHP. System will automatically prepare binary `.mo` files for PHP and `.json` dictionaries for JavaScript. You can use the `bin/zolinga gettext:extract --module={MODULE}` command to extract all strings from the module and create a `{MODULE}/locale/{lang}_{TERRITORY}.po` file for each language. These plain text files are intended to be translated by a human translator. 
+The standard workflow for preparing dictionaries is the same as for PHP. System will automatically prepare binary `.mo` files for PHP and `.json` dictionaries for JavaScript. You can use the `bin/zolinga gettext:extract --domains={DOMAINS}` command to extract all strings from the domain(s) and create a `{MODULE}/locale/{lang}_{TERRITORY}.po` file for each language. `--domains` accepts a comma-separated list of domains (for example `--domains=my-module,other-module`). These plain text files are intended to be translated by a human translator.
 
-When a translator finishes translating the dictionary, you need to compile it into a machine-readable format. This is done by running `bin/zolinga gettext:compile --module={MODULE}`. This command will compile all `.po` files into binary `.json` files for JavaScript.
+When a translator finishes translating the dictionary, you need to compile it into a machine-readable format. This is done by running `bin/zolinga gettext:compile --domains={DOMAINS}`. This command will compile all `.po` files into binary `.json` files for JavaScript.
 

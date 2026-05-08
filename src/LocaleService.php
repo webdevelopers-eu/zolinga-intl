@@ -61,6 +61,13 @@ class LocaleService implements ServiceInterface
      */
     private ?string $region = null;
 
+    /**
+     * Tracks which domain suffixes have been initialized (idempotency guard).
+     *
+     * @var array<string, bool>
+     */
+    private array $domainsInitialized = [];
+
 
     /**
      * List of supported language tags. Canonicalized version of $api->config['intl']['locales'].
@@ -322,35 +329,57 @@ class LocaleService implements ServiceInterface
      * 
      * Public because gettext compiler needs to re-initialize it.
      *
+     * @param string $domainSuffix Optional suffix for domain names (e.g. '.static' for HTML translation)
      * @return void
      */
-    public function initGettext()
+    public function initGettext(string $domainSuffix = ''): void
     {
         global $api;
 
+        // Always re-set the locale env — this is what actually switches the language
         $this->setLocaleEnv();
 
-        $paths = array_combine(
-            array_map(fn ($path) => basename($path), $api->manifest->modulePaths),
-            array_map(fn ($path) => $path . '/locale', $api->manifest->moduleRealPaths)
-        );
+        // Domain binding is idempotent; only do it once per instance per suffix.
+        if (isset($this->domainsInitialized[$domainSuffix])) {
+            return;
+        }
+        $this->domainsInitialized[$domainSuffix] = true;
 
-        // Add custom per-site dictionary
-        $paths['custom'] = $api->fs->toPath('private://zolinga-intl/locale');
-
-        foreach ($paths as $domain => $path) {
-            if (is_dir($path)) {
-                bindtextdomain($domain, $path)
-                    or trigger_error("Cannot bind text domain '$domain' to path $path", E_USER_WARNING);
+        // 1. Module domains (from manifest)
+        foreach ($api->manifest->moduleNames as $moduleName) {
+            $localePath = $api->fs->toPath("module://$moduleName") . '/locale';
+            if (is_dir($localePath)) {
+                $domain = $moduleName . $domainSuffix;
+                bindtextdomain($domain, $localePath)
+                    or trigger_error("Cannot bind text domain '$domain' to path $localePath", E_USER_WARNING);
                 bind_textdomain_codeset($domain, 'UTF-8')
                     or trigger_error("Cannot bind text domain codeset: UTF-8", E_USER_WARNING);
-                $this->testGettext($domain, $path);
+                if (!$domainSuffix) {
+                    $this->testGettext($domain, $localePath);
+                }
             }
         }
 
-        if (is_dir($paths['custom'])) {
-            textdomain('custom')
-                or trigger_error("Cannot set text domain: custom", E_USER_WARNING);
+        // 2. Hard-coded 'default' domain — conflict with a module named 'default' is a real error
+        if (in_array('default', $api->manifest->moduleNames)) {
+            throw new \Zolinga\Intl\Exceptions\GettextDomainException(
+                "A module named 'default' conflicts with the built-in 'default' gettext domain."
+            );
+        }
+        $defaultPath = $api->fs->toPath('private://zolinga-intl/default/locale/');
+        if (is_dir($defaultPath)) {
+            $domain = 'default' . $domainSuffix;
+            bindtextdomain($domain, $defaultPath)
+                or trigger_error("Cannot bind text domain '$domain' to path $defaultPath", E_USER_WARNING);
+            bind_textdomain_codeset($domain, 'UTF-8')
+                or trigger_error("Cannot bind text domain codeset: UTF-8", E_USER_WARNING);
+            if (!$domainSuffix) {
+                $this->testGettext($domain, $defaultPath);
+            }
+            if (!$domainSuffix) {
+                textdomain('default')
+                    or trigger_error("Cannot set text domain: default", E_USER_WARNING);
+            }
         }
     }
 

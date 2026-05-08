@@ -53,11 +53,11 @@ The translation workflow consists of the following steps
     * translating PHP (see Zolinga inbuilt WIKI) dynamic files
     * translating JavaScript (see Zolinga inbuilt WIKI) dynamic files
 - **Extracting the translatable strings**
-  - You need to extract the translatable strings from your code. This will generate a `.po` files by scanning your code. The scanning and extraction is done by the `bin/zolinga gettext:extract --module={MODULE}` command. The result are `.po` files in the `locale` directory of the module.
+  - You need to extract the translatable strings from your code. This will generate a `.po` files by scanning your code. The scanning and extraction is done by the `bin/zolinga gettext:extract --domains={DOMAINS}` command. `--domains` accepts a comma-separated list of domains. The result are `.po` files in the `locale` directory of the module.
 - **Translating the strings**
   - You need to translate untranslated strings in the `{MODULE}/locale/*.po` files. You can use any text editor or a specialized translation tool like [Poedit](https://poedit.net/).
 - **Compiling the translations**
-  - You need to compile the translations to generate the `.mo` files for PHP, `.json` dictionaries for Javascript or `.{lang}_{TERRITORY}.html` static translations for HTML. The compilation is done by the `bin/zolinga gettext:compile --module={MODULE}` command.
+  - You need to compile the translations to generate the `.mo` files for PHP, `.json` dictionaries for Javascript or `.{lang}_{TERRITORY}.html` static translations for HTML. The compilation is done by the `bin/zolinga gettext:compile --domains={DOMAINS}` command. `--domains` accepts a comma-separated list of domains.
 
 # Languages
 

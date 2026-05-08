@@ -52,7 +52,7 @@ class GettextDomain {
     public function __construct(
         public readonly string $name,                    // e.g. 'acme-module', 'default', 'system'
         public readonly string $serverOutput,            // path for .pot/.po/.mo files (PHP + HTML)
-        public readonly string $clientJsonFile,          // path for JS .json dictionaries
+        public readonly string $clientJsonOutput,          // path for JS .json dictionaries
         public readonly array $folders = [],             // absolute paths to scan
         public readonly int $fileTypes = FileTypes::ALL,
     ) {}
@@ -66,7 +66,7 @@ class GettextDomain {
 
 **Default paths per domain type:**
 
-| Domain | `serverOutput` | `clientJsonFile` |
+| Domain | `serverOutput` | `clientJsonOutput` |
 |--------|---------------|-------------------|
 | Module (e.g. `acme-module`) | `./modules/acme-module/locale/` | `./modules/acme-module/install/dist/locale/` |
 | `default` | `./data/zolinga-intl/default/locale/` | `./public/data/zolinga-intl/default/locale/` |
@@ -108,18 +108,20 @@ class I18nService implements ServiceInterface {
 ### 2.2 `getGettextDomains()` logic
 
 1. Build `GettextDomain` objects for all modules that have a `locale/` directory:
-   - `name` = module folder name
+   - `name` = module folder name (from `$api->manifest->moduleNames`)
    - `serverOutput` = `$api->fs->toPath("module://{name}/locale/")`
-   - `clientJsonOutput` = `$api->fs->toPath("module://{name}/install/dist/locale/")`
+   - `clientJsonOutput` = `$api->fs->toPath("dist://{name}") . '/locale'`
    - `folders` = `[$api->fs->toPath("module://{name}/")]`
    - `fileTypes` = `FileTypes::ALL`
 
-2. Build the hard-coded `default` domain:
+2. Build the hard-coded `default` domain (always present, directory auto-created if missing):
    - `name` = `'default'`
    - `serverOutput` = `$api->fs->toPath('private://zolinga-intl/default/locale/')`
    - `clientJsonOutput` = `$api->fs->toPath('public://data/zolinga-intl/default/locale/')`
    - `folders` = `[$api->fs->toPath('private://'), $api->fs->toPath('public://')]`
    - `fileTypes` = `FileTypes::ALL`
+
+   The `serverOutput` directory is ensured by `install/private/default/locale/.keep` in the module's install assets. If the directory does not exist at runtime, `getGettextDomains()` creates it automatically via `mkdir()`.
 
 3. Return all domains keyed by name.
 
@@ -209,7 +211,7 @@ extract()
 - `extractStaticPotFile()`: same DOM-parse → fake PHP → `xgettext -L PHP` logic, output to `static.pot`
 - New `mergePotFiles()`: runs `msgcat` on all three `templates/*.pot` → `messages.pot`
 - `generateLanguagePoFiles()`: unchanged logic (msginit/msgmerge), but reads from `messages.pot`
-- Each `extract*PotFile()` method **truncates (unlinks) its target `.pot` file before starting** — `xgettext --join-existing` appends to whatever is on disk, so re-runs would accumulate stale entries without this; truncating first makes every extraction idempotent
+- Each `extract*PotFile()` method **writes a minimal header via `initPotFile()`** before extraction — `xgettext --join-existing` requires the file to exist, so writing a minimal header makes every extraction idempotent without accumulating stale entries
 - `extractInBatches()` and `getExtractCmd()`: unchanged, just parameterized with target pot file
 - `extractHtmlStrings()` and `makePhpLine()`: **unchanged** except `$relativeFile` now uses `$api->fs->toZolingaUri($file)` instead of `$this->modulePath` — consistent with `exec()` now using `chdir(ROOT_DIR)`
 
@@ -328,7 +330,7 @@ public function initGettext(string $domainSuffix = ''): void {
     $this->domainsInitialized[$domainSuffix] = true;
 
     // 1. Module domains (from manifest)
-    foreach ($api->manifest->modulePaths as $moduleName => $modulePath) {
+    foreach ($api->manifest->moduleNames as $moduleName) {
         $localePath = $api->fs->toPath("module://$moduleName") . '/locale';
         if (is_dir($localePath)) {
             $domain = $moduleName . $domainSuffix;
@@ -341,7 +343,7 @@ public function initGettext(string $domainSuffix = ''): void {
     }
 
     // 2. Hard-coded 'default' domain — conflict with a module named 'default' is a real error
-    if (isset($api->manifest->modulePaths['default'])) {
+    if (in_array('default', $api->manifest->moduleNames)) {
         throw new \Zolinga\Intl\Exceptions\GettextDomainException(
             "A module named 'default' conflicts with the built-in 'default' gettext domain."
         );
@@ -485,7 +487,7 @@ public/data/zolinga-intl/default/locale/  ← clientJsonOutput
 
 ## 7. Complete File Change List
 
-### New files (4):
+### New files (5):
 
 | File | Purpose |
 |------|---------|
@@ -493,6 +495,7 @@ public/data/zolinga-intl/default/locale/  ← clientJsonOutput
 | `src/Gettext/GettextDomain.php` | Domain descriptor: name, folders, fileTypes, output paths |
 | `src/Exceptions/GettextDomainException.php` | Exception for duplicate domain registration |
 | `src/I18nService.php` | `$api->i18n` service — `getGettextDomains()` with hard-coded `default` domain |
+| `install/private/default/locale/.keep` | Ensures the `default` domain's `serverOutput` directory exists |
 
 ### Modified files (7):
 

@@ -4,27 +4,18 @@ declare(strict_types=1);
 
 namespace Zolinga\Intl\Gettext;
 
-use DOMDocument;
 use Locale;
-use Zolinga\Intl\GettextCli;
 
 /**
- * Compile language po files and translate html files to the supported locales.
+ * Compile client-side gettext: merge .po with client.pot → temporary .po → JSON.
  *
  * @author Daniel Sevcik <danny@zolinga.net>
  * @date 2024-03-16
  */
 class JavascriptCompiler extends GettextAbstract
 {
-
-    public function __construct(string $modulePath)
-    {
-        parent::__construct($modulePath);
-    }
-
     /**
-     * Generate MO files from translated PO files and translate HTML files if
-     * they have <meta name="gettext" content="translate"> or <meta name="gettext" content="cherry-pick">
+     * Generate JSON dictionaries from translated PO files.
      *
      * @return void
      */
@@ -34,26 +25,29 @@ class JavascriptCompiler extends GettextAbstract
     }
 
     /**
-     * Merge the translated .po files from $this->modulePath/locale/$lang.po with the .pot file $this->modulePath 
-     * into the $this->modulePath/install/dist/locale/$lang.po
+     * Merge the translated .po files with client.pot and convert to JSON.
      */
     private function makePoFiles(): void
     {
-        foreach ($this->locales as $lang) {
+        foreach ($this->domain->localesWithPO as $lang) {
             $jsLang = Locale::getPrimaryLanguage($lang) . "-" . Locale::getRegion($lang);
-            $poFile = $this->modulePath . "/locale/$lang.po";
-            $potFile = $this->modulePath . "/install/dist/locale/messages.pot";
-            $jsonFile = $this->modulePath . "/install/dist/locale/$jsLang.json";
+            $poFile = $this->domain->serverOutput . "/$lang.po";
+            $potFile = $this->domain->clientPotFile;
+            $jsonFile = $this->domain->clientJsonOutput . "/$jsLang.json";
 
-            // Merge the .pot file with the .po file;
+            if (!is_dir($this->domain->clientJsonOutput)) {
+                mkdir($this->domain->clientJsonOutput, 0777, true) or throw new \RuntimeException("Cannot create directory: " . $this->domain->clientJsonOutput);
+            }
+
+            $tmpPo = tempnam(sys_get_temp_dir(), "{$this->domain->name}.$lang.client.") . '.po';
             $output = $this->exec(
-                "msgmerge --no-fuzzy-matching " . escapeshellarg($poFile) . " " . escapeshellarg($potFile) . " 2> /dev/null",
+                "msgmerge --no-fuzzy-matching " . escapeshellarg($poFile) . " " . escapeshellarg($potFile) . " -o " . escapeshellarg($tmpPo) . " 2>&1",
                 "Merging $poFile with $potFile (msgmerge)"
             ) or throw new \RuntimeException("Cannot merge $poFile with $potFile");
 
-            // Convert the .po file to .json
-            $json = $this->convertToJson($output);
+            $json = $this->convertToJson(file_get_contents($tmpPo) ?: '');
             file_put_contents($jsonFile, json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+            unlink($tmpPo);
         }
     }
 
@@ -85,15 +79,12 @@ class JavascriptCompiler extends GettextAbstract
                     $blockList[] = $block;
                     $block = ["type" => null, "value" => ''];
                 }
-                // echo "KEY: $line\n";
                 list($key, $value) = explode(' ', $line, 2);
                 $block["type"] = trim($key);
                 $block["value"] = json_decode(trim($value), true, 1, JSON_THROW_ON_ERROR);
             } elseif (substr($line, 0, 1) === '"') {
-                // echo "VALUE: $line\n";
                 $block["value"] .= json_decode($line, true, 1, JSON_THROW_ON_ERROR);
             } elseif ($block['type']) {
-                // echo "END: $line\n";
                 $blockList[] = $block;
                 $block = ["type" => null, "value" => ''];
             }
@@ -111,16 +102,13 @@ class JavascriptCompiler extends GettextAbstract
                 $key = $block['value'] . "";
             } elseif ($block['type'] == 'msgid_plural') {
                 // $key = $block['value'];
-            } elseif (substr($block['type'], 0, 6) == 'msgstr') {
+            } elseif (substr($block['type'] ?? '', 0, 6) == 'msgstr') {
                 $values[] = $block['value'];
             }
         }
         if (count($values)) {
             $list[$key] = count($values) == 1 ? $values[0] : $values;
         }
-
-        // print_r($blockList);
-        // print_r($list);
 
         if (isset($list[''])) {
             $list[''] = $this->parseAsHeaders($list['']);
