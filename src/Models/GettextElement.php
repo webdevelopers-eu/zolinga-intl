@@ -12,12 +12,26 @@ class GettextElement extends DOMElement implements GettextNodeInterface
     // different markup - which $this->textContent cannot distinguish. 
     public ?GettextAttribute $gettextAttribute { get => $this->getAttributeNode('gettext') ?: null; }
     public string $gettextDomain { get => GettextDocument::parseGettextAttr($this->gettextAttribute)['.']['domain'] ?? ''; }
-    public string $gettextHash { get => GettextDocument::calculateHash($this->normalizeSpace($this->ownerDocument->saveXML($this))); }
+    public string $gettextHash { get => GettextDocument::parseGettextAttr($this->gettextAttribute)['.']['hash'] ?? ''; }
     public string $gettextString { get => $this->normalizeSpace($this->getGettextString()); }
     public array $descendantElements { get => iterator_to_array($this->getElementsByTagName('*')); }
     /** @disregard */
     public string $gettextContext { get => trim($this->ownerDocument?->xpath->evaluate('string((ancestor-or-self::*[@gettext-context])[1]/@gettext-context)', $this)); }
     public private(set) bool $isTranslated = false;
+
+    public function ensureGettextHash(): bool
+    {
+        $hash = $this->gettextHash;
+        
+        if ($this->gettextHash) {
+            return false; // hash already exists, no need to update
+        }
+
+        $newHash = GettextDocument::calculateHash(microtime(true) . rand(0, 1000000));
+        GettextDocument::updateGettextAttrHash($this->gettextAttribute, '.', $newHash);
+
+        return true; // hash was updated
+    }
 
     /**
      * Get the gettext string for this element, which is the concatenation of its text content and the gettext attributes of its descendant elements.

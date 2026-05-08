@@ -50,4 +50,12 @@ interface GettextNodeInterface
 
 
     public function translate(string $translation, ?array $elements = null): void;
+
+    /**
+     * Make sure translated Elements have permanent gettext-hash part of attribute
+     * for Elements.
+     *
+     * @return bool True if the hash attribute was added, false if it was already present
+     */
+    public function ensureGettextHash(): bool;
 }

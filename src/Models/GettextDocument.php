@@ -7,7 +7,7 @@ use DOMDocument;
 use DOMXPath;
 use Zolinga\Intl\Types\GettextModeEnum;
 
-class GettextDocument extends DOMDocument
+class GettextDocument extends DOMDocument implements \Stringable
 {
     public readonly DOMXPath $xpath;
     public readonly string $filePath;
@@ -129,23 +129,28 @@ class GettextDocument extends DOMDocument
      */
     public function reindex(): void
     {
+        global $api;
+
         $results = $this->xpath->query("//@" . self::MARKUP_NAME)
             or throw new \RuntimeException("Cannot query the document to extract translatable elements: " . self::MARKUP_NAME);
 
         $this->translatables = [];
+        $addedHashes = false;
 
         foreach ($results as $gettextAttrNode) {
             /** @var \DOMAttr $gettextAttrNode */
             $element = $gettextAttrNode->ownerElement;
             foreach (self::parseGettextAttr($gettextAttrNode) as ['domain' => $domain, 'keyword' => $keyword, 'hash' => $hash]) {
-                /* @var GettextNodeInterface|GettextElement|GettextAttribute $node */
                 $node = $keyword === '.' ? $element : $element->getAttributeNode($keyword);
-                if (!$hash) { // for translated documents we use original string hash from original content, not the trannslated one
-                    /** @disregard */
-                    $hash = $node->gettextHash;
-                }
-                $this->translatables["$domain:$keyword#$hash"] = $node;
+                /** @var GettextNodeInterface $node */
+                $addedHashes = $node->ensureGettextHash() || $addedHashes;
+                $this->translatables["$domain:$keyword#$node->gettextHash"] = $node;
             }
+        }
+
+        if ($addedHashes) {
+            $api->log->info('i18n', "Added missing gettext-hash attributes to $this");
+            $this->save($this->filePath);
         }
     }
 
@@ -280,5 +285,10 @@ class GettextDocument extends DOMDocument
             'keyword' => $matches['keyword'],
             'hash' => $matches['hash'] ?? null
         ];
+    }
+
+    public function __toString(): string
+    {
+        return "🔰GettextDocument[$this->filePath]";
     }
 }

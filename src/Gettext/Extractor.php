@@ -284,11 +284,19 @@ class Extractor extends GettextAbstract
 
         $doc = new GettextDocument($file);
         $strings = [];
+        $changed = false;
 
         foreach ($doc->translatables as $id => $node) {
             ["domain" => $domain, "keyword" => $keyword, "hash" => $hash] = GettextDocument::parseTranslatableKey($id);          
             $strings[] = $this->makePhpLine($domain, $node->gettextString, $doc->filePath . " ($id)");
+            $changed = $node->ensureGettextHash() || $changed;
         }
+
+        if ($changed) {
+            $doc->save($file);
+            $api->log->info('i18n', "Updated $file with gettext-hash attributes for translatable nodes");
+        }
+
         $strings = array_unique($strings);
         return implode("\n", $strings) . "\n";
     }
