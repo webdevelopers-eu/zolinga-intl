@@ -39,10 +39,10 @@ echo dgettext('my-module', 'Hello, world!');
 echo sprintf(dngettext('my-module', 'One apple', '%d apples', 3), 3);
 ```
 
-For context-aware translations, append `GETTEXT_CTX_END` (`"\x04"`) before the message:
+For context-aware translations, append `"\x04"` before the message:
 
 ```php
-echo dgettext('my-module', 'Confirm form submission' . GETTEXT_CTX_END . 'Send');
+echo dgettext('my-module', "Confirm form submission\x04Send");
 ```
 
 ## JavaScript
@@ -280,7 +280,7 @@ export default class MyComponent extends WebComponentIntl {
 | Large static content (articles, legal) | Static HTML with `gettext` attributes |
 | Web component with HTML template | `WebComponentIntl` + compiled HTML |
 | Web component with dynamic text | `WebComponent` + JS `gettext()` |
-| Ambiguous single words | `GETTEXT_CTX_END` context separator |
+| Ambiguous single words | `"\x04"` context separator |
 
 # Types Provided
 
@@ -317,5 +317,5 @@ export default class MyComponent extends WebComponentIntl {
 - Only ever edit `*.po` files in `modules/{name}/locale/` or `data/zolinga-intl/default/locale/`.
 - Run `extract` after adding or changing translatable strings.
 - Run `compile` after editing `.po` files.
-- Use `GETTEXT_CTX_END` when the same English word needs different translations in different contexts.
+- Use `"\x04"` when the same English word needs different translations in different contexts.
 - For HTML static translation, never manually edit the generated `*.{lang}-{TERRITORY}.html` files unless you remove or change the `<meta name="gettext" content="replace"/>` tag. 

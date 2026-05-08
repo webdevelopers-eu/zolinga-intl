@@ -63,7 +63,7 @@ Edit `my-module/locale/cs_CZ.po` (and other locale files). Use Poedit or any tex
 **Important rules:**
 - Remove `#, fuzzy` markers from correct translations — fuzzy entries cause compile errors.
 - Do not create `locale/` folders or `.po`/`.mo` files manually — use `gettext:extract` to create them.
-- The `.po` file shows the full key including context prefix (from `GETTEXT_CTX_END`); translators see the context.
+- The `.po` file shows the full key including context prefix (from `"\x04"`); translators see the context.
 
 ## Step 4: Compile
 
