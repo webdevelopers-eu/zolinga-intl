@@ -18,4 +18,6 @@ enum GettextModeEnum: string
     case CHERRY_PICK = 'cherry-pick';
     // Target file that should be fully replaced with the new translated content
     case REPLACE = 'replace';
+    // Protected file that should not be translated at all
+    case PROTECT = 'protect';
 }

@@ -144,11 +144,20 @@ class Compiler extends GettextAbstract
 
         $oldLocale = $api->locale->locale;
         $api->locale->locale = $locale;
-        // We want ::from and not ::tryFrom because at this stage there must be valid gettext mode
-        $mode = GettextModeEnum::from(file_exists($targetFile) ? GettextDocument::getGettextMode($targetFile) : 'replace');
+        $modeString = file_exists($targetFile) ? GettextDocument::getGettextMode($targetFile) : 'replace';
+        $mode = GettextModeEnum::tryFrom($modeString);
+
+        if ($mode === GettextModeEnum::PROTECT) {
+            $api->log->info('i18n', "File $targetFile is protected from translation. Skipping.");
+            return;
+        } elseif (!$mode) { // Maybe we don't want to translate this file if the mode is not what it should be
+            $api->log->warning('i18n', "Unexpected gettext mode '$modeString' in $targetFile. Skipping translation for this file.");
+            $validOptions = implode(', ', array_map(fn($m) => $m->value, GettextModeEnum::cases()));
+            $api->log->tip('i18n', "Check the <meta name=\"gettext\" content=\"...\"> tag in the $targetFile and make sure it has a valid value: $validOptions.");
+            return;
+        }
 
         $sourceDoc = new GettextDocument($sourceFile);
-
         $targetDoc = new GettextDocument($mode === GettextModeEnum::REPLACE || !file_exists($targetFile) ? $sourceFile : $targetFile);
         $targetDoc->gettextMode = $mode;
 
