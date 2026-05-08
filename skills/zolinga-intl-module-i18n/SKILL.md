@@ -50,10 +50,34 @@ echo dgettext('my-module', 'Confirm form submission' . GETTEXT_CTX_END . 'Send')
 Import the domain-bound helper from the module's dist path, then use `gettext()` / `ngettext()`:
 
 ```javascript
-import {gettext, ngettext} from "/dist/my-module/locale/gettext.js?my-module";
+import {gettext, ngettext} from "/dist/zolinga-intl/gettext.js?my-module";
 
 console.log(gettext("Hello, world!"));
 console.log(ngettext("One apple", "%s apples", 3, 3));
+```
+
+The `?my-module` query string sets the gettext domain. Aliases: `gettext` = `__`, `ngettext` = `_n`.
+
+### How It Works
+
+1. `gettext.js` reads the `lang` cookie (set by `$api->locale`).
+2. Fetches `/dist/{module}/locale/{lang}.json` (e.g., `/dist/my-module/locale/cs-CZ.json`).
+3. If `en-US`, skips fetch (source strings are English).
+4. Initializes the `gettext.js` library with the fetched dictionary.
+
+### JSON Dictionary Format
+
+Located at `{MODULE}/install/dist/locale/{lang}.json`:
+
+```json
+{
+  "": {
+    "language": "cs",
+    "plural-forms": "nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;"
+  },
+  "Hello, world!": "Ahoj, světe!",
+  "One apple": ["Jedno jablko", "%s jablka", "%s jablek"]
+}
 ```
 
 ## HTML (Static Translation)
@@ -75,9 +99,30 @@ Add `<meta name="gettext" content="translate"/>` in `<head>`, then mark elements
 </html>
 ```
 
-The `gettext` attribute is a whitespace-separated list of keywords:
-- `.` — translate the element's text content
-- `attrName` — translate the value of that attribute
+The `gettext` attribute is a whitespace-separated list of keywords: `[domain:](attribute|.)[#hash]`
+
+| Keyword | Meaning |
+|---------|---------|
+| `.` | Translate element's text content |
+| `title` | Translate the `title` attribute |
+| `alt` | Translate the `alt` attribute |
+| `content` | Translate the `content` attribute (for `<meta>`) |
+| `my-module:title` | Use domain `my-module` instead of default |
+| `.#a3f2b1` | Hash suffix (added by compiler, not manually) |
+
+### Translation Modes
+
+The `<meta name="gettext" content="..."/>` in the **generated** file controls behavior on recompilation:
+
+| Mode | Behavior |
+|------|----------|
+| `replace` | File is fully regenerated from source on every compile. **Default for new files.** Any manual edits are lost. |
+| `cherry-pick` | Only elements with `gettext` attribute are updated; all other HTML is preserved. Good for large articles where translators need full control of layout. |
+| (no meta) | File is ignored by compiler — fully manual maintenance. |
+
+In cherry-pick mode, `gettext` attributes include `#HASH` suffixes (e.g., `gettext=".#943a70 title#e52e5e"`) that map back to `.po` file entries.
+
+**Warning**: Cherry-pick mode does NOT sync structural changes (CSS, images, new elements) from the source file — only translatable strings are updated and everything else is left as-is. Use `replace` mode if you want structural changes to be reflected in the translated file - it will remove translated file and create it from the source file on every compile.
 
 # Translation Workflow
 
@@ -175,6 +220,72 @@ public/data/zolinga-intl/default/locale/  ← clientJsonOutput
 - **Compiler** intersects each `{lang}.po` with `server.pot` to produce `{domain}.mo` for PHP, and with `static.pot` to produce `{domain}.static.mo` for HTML translation. It also intersects `{lang}.po` with `client.pot` to generate JS `.json` dictionaries.
 - **HTML translation** uses `dgettext("{domain}.static", ...)` so static strings do not pollute the runtime `.mo` domain.
 - **LocaleService::initGettext()** binds all module domains plus the `default` domain at request startup. An optional `.static` suffix is bound only during CLI compilation for HTML pre-translation.
+
+# `$api->locale` Service
+
+The locale service handles language detection, switching, and gettext initialization.
+
+## Properties
+
+| Property | Format | Example |
+|----------|--------|---------|
+| `$api->locale->tag` | Canonicalized BCP 47 | `cs-CZ` |
+| `$api->locale->locale` | `language_REGION` | `cs_CZ` |
+| `$api->locale->jsLocale` | `language-REGION` | `cs-CZ` |
+| `$api->locale->lang` | Primary language code | `cs` |
+| `$api->locale->region` | Region code | `CZ` |
+
+Read-only arrays: `supportedTags`, `supportedLocales`, `supportedLangs`, `supportedLangNames`, `supportedLocaleNames`, `supportedRegionNames`.
+
+Language detection priority: `$_COOKIE['lang']` → `$_SESSION['lang']` → `Accept-Language` header → first configured locale.
+
+Setting `$api->locale->locale = 'cs_CZ'` or `$api->locale->lang = 'cs'` reinitializes gettext for all domains.
+
+## `getLocalizedFile()`
+
+```php
+$api->locale->getLocalizedFile('path/to/template.html');
+// Returns path/to/template.cs-CZ.html if it exists, else original
+```
+
+# `$api->i18n` Service
+
+Discover gettext domains programmatically:
+
+```php
+$domains = $api->i18n->getGettextDomains();
+// Returns array<string, GettextDomain> keyed by domain name
+```
+
+# Web Component Localization
+
+Use `WebComponentIntl` (from `/dist/zolinga-intl/js/web-component-intl.js`) for web components that load localized HTML templates:
+
+```javascript
+import WebComponentIntl from '/dist/zolinga-intl/js/web-component-intl.js';
+
+export default class MyComponent extends WebComponentIntl {
+    // rewriteURL() automatically inserts locale before file extension
+    // e.g., template.html → template.cs-CZ.html (if lang != en-US)
+}
+```
+
+`rewriteURL(url, type)` inserts the current `document.documentElement.lang` before the file extension. Falls back to the original URL if the localized file doesn't exist.
+
+# Choosing the Right Approach
+
+| Scenario | Approach |
+|----------|----------|
+| Short UI labels, buttons, messages | PHP `dgettext()` or JS `gettext()` |
+| Large static content (articles, legal) | Static HTML with `gettext` attributes |
+| Web component with HTML template | `WebComponentIntl` + compiled HTML |
+| Web component with dynamic text | `WebComponent` + JS `gettext()` |
+| Ambiguous single words | `GETTEXT_CTX_END` context separator |
+
+# Types Provided
+
+- `Zolinga\Intl\Types\CountryEnum` — ISO 3166-1 alpha-2 country codes as backed enum (int values).
+- `Zolinga\Intl\Types\CountryGroupsEnum` — `EU`, `EFTA`, `BX` group constants.
 
 ## Troubleshooting
 
