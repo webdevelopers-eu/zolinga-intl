@@ -149,7 +149,7 @@ class GettextDocument extends DOMDocument implements \Stringable
         }
 
         if ($addedHashes) {
-            $api->log->info('i18n', "Added missing gettext-hash attributes to $this");
+            $api->log->info('i18n', "Saving $this after adding permanent gettext-hash attributes");
             $this->save($this->filePath);
         }
     }
