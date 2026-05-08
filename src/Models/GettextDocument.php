@@ -54,7 +54,8 @@ class GettextDocument extends DOMDocument implements \Stringable
         $this->registerNodeClass('DOMElement', GettextElement::class);
         $this->registerNodeClass('DOMAttr', GettextAttribute::class);
 
-        $api->log->info('i18n', "🔰 Loading HTML file $file for gettext operations");
+        $this->filePath = $api->fs->toZolingaUri($file) ?: $file; 
+        $api->log->info('i18n', "🔰 Loading HTML file $this->filePath for gettext operations");
 
         // fix html5/svg errors - libxml_use_internal_errors
         $errorsVal = libxml_use_internal_errors();
@@ -64,9 +65,7 @@ class GettextDocument extends DOMDocument implements \Stringable
         $this->loadHTML("<?xml encoding=\"utf-8\" ?>\n".$html, LIBXML_NOERROR | LIBXML_NONET | LIBXML_COMPACT | LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
 
         libxml_use_internal_errors($errorsVal);
-
         $this->xpath = new DOMXPath($this);
-        $this->filePath = $api->fs->toZolingaUri($file) ?: $file; 
 
         $this->addCharsetMetaIfMissing();
         $this->reindex();
