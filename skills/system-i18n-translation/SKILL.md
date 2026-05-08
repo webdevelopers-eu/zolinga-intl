@@ -45,16 +45,16 @@ bin/zolinga gettext:extract --domains=my-domain
 ```
 
 **What it does:**
-1. Scans `{MODULE}/src/**/*.php` for `dgettext()`, `dngettext()` calls.
-2. Scans `{MODULE}/install/dist/**/*.js` for `gettext()`, `ngettext()`, `__()`, `_n()` calls.
-3. Scans `{MODULE}/**/*.html` for `gettext` attributes (only files with `<meta name="gettext" content="translate"/>`).
-4. Generates/updates `{MODULE}/locale/messages.pot` (template).
+1. Scans `{MODULE}/src/**/*.php` for `dgettext()`, `dngettext()` calls → writes to `{MODULE}/locale/templates/server.pot`.
+2. Scans `{MODULE}/install/dist/**/*.js` for `gettext()`, `ngettext()`, `__()`, `_n()` calls → writes to `{MODULE}/locale/templates/client.pot`.
+3. Scans `{MODULE}/**/*.html` for `gettext` attributes (only files with `<meta name="gettext" content="translate"/>`) → writes to `{MODULE}/locale/templates/static.pot`.
+4. Merges all three `.pot` files into `{MODULE}/locale/messages.pot` via `msgcat`.
 5. Creates or updates `{MODULE}/locale/{LOCALE}.po` for each configured locale using `msginit`/`msgmerge`.
-6. Also generates `{MODULE}/install/dist/locale/messages.pot` for JavaScript-specific extraction.
+6. Post-processes each `.pot` file to split `"context\x04message"` entries into proper `msgctxt`/`msgid` pairs.
 
-**Without `--module`**: processes all modules that have a `locale/` directory.
+**Without `--domains`**: processes all gettext domains (module domains plus the built-in `default` domain).
 
-**Requirements**: `xgettext`, `msginit`, `msgmerge` must be available on the system. PHP `gettext` extension must be loaded.
+**Requirements**: `xgettext`, `msginit`, `msgmerge`, `msgcat` must be available on the system. PHP `gettext` extension must be loaded.
 
 ## Step 3: Translate
 
@@ -70,16 +70,15 @@ Edit `my-module/locale/cs_CZ.po` (and other locale files). Use Poedit or any tex
 ```bash
 bin/zolinga gettext:compile --domains=my-domain
 ```
+
 **Without `--domains`**: processes all gettext domains (module domains plus the built-in `default` domain).
-**Without `--domains`**: processes all gettext domains.
 
 **What it does:**
-1. Compiles `{MODULE}/locale/{LOCALE}.po` → `{MODULE}/locale/{LOCALE}/LC_MESSAGES/{MODULE}.mo` (binary for PHP).
-2. Reinitializes `$api->locale->initGettext()` so PHP picks up new `.mo` files.
-3. Translates HTML files marked with `<meta name="gettext" content="translate"/>` → generates `*.{lang-REGION}.html` files.
-4. Merges `{MODULE}/locale/{LOCALE}.po` with `{MODULE}/install/dist/locale/messages.pot` → generates `{MODULE}/install/dist/locale/{lang-REGION}.json` (JSON dictionary for JavaScript).
-
-**Without `--module`**: processes all modules.
+1. **Server-side (.mo):** Merges `{MODULE}/locale/{LOCALE}.po` with `{MODULE}/locale/templates/server.pot` via `msgmerge` → temporary `.po` → `msgfmt` → `{MODULE}/locale/{LOCALE}/LC_MESSAGES/{MODULE}.mo`.
+2. **Static (.static.mo):** Merges `{MODULE}/locale/{LOCALE}.po` with `{MODULE}/locale/templates/static.pot` via `msgmerge` → temporary `.po` → `msgfmt` → `{MODULE}/locale/{LOCALE}/LC_MESSAGES/{MODULE}.static.mo`.
+3. Binds `.static` domains via `$api->locale->initGettext('.static')`.
+4. Translates HTML files marked with `<meta name="gettext" content="translate"/>` → generates `*.{lang-REGION}.html` files using `GettextDocument` model classes.
+5. **Client-side (.json):** Merges `{MODULE}/locale/{LOCALE}.po` with `{MODULE}/locale/templates/client.pot` → temporary `.po` → ad-hoc parser → `{MODULE}/install/dist/locale/{lang-REGION}.json`.
 
 **Warnings**:
 - If `.po` files contain `fuzzy` entries, compilation logs an error — review and remove the `fuzzy` keyword from correct translations.
@@ -95,27 +94,52 @@ bin/zolinga gettext:compile --domains=my-domain
 
 ```
 📁 my-module/
-    📁 locale/                              ← PHP gettext domain root
-        📄 LINGUAS                          ← list of locales (one per line)
-        📄 messages.pot                     ← extracted template
+    📁 locale/                              ← PHP gettext domain root (serverOutput)
+        📁 templates/
+            📄 server.pot                   ← PHP strings only
+            📄 client.pot                   ← JS strings only
+            📄 static.pot                   ← HTML strings only
+        📄 messages.pot                     ← merged (msgcat of all 3)
         📄 en_US.po                         ← English translations
         📄 cs_CZ.po                         ← Czech translations
         📁 en_US/LC_MESSAGES/
-            📄 my-module.mo                  ← compiled binary (PHP)
+            📄 my-module.mo                  ← PHP runtime (from server.pot)
+            📄 my-module.static.mo           ← HTML translation (from static.pot)
         📁 cs_CZ/LC_MESSAGES/
-            📄 my-module.mo                  ← compiled binary (PHP)
+            📄 my-module.mo
+            📄 my-module.static.mo
     📁 install/dist/
-        📁 locale/                           ← JS gettext domain root
-            📄 LINGUAS
-            📄 messages.pot                  ← JS-specific template
+        📁 locale/                           ← JS gettext domain root (clientJsonOutput)
             📄 en-US.json                    ← compiled JSON (JS)
             📄 cs-CZ.json                    ← compiled JSON (JS)
-            📄 README.txt                    ← "do not edit" notice
         📄 my-page.html                      ← source HTML (meta: translate)
         📄 my-page.cs-CZ.html                ← compiled translation
         📁 web-components/my-component/
             📄 my-component.html             ← source template
             📄 my-component.cs-CZ.html       ← localized template
+```
+
+### Default Domain
+
+```
+📁 data/zolinga-intl/default/locale/         ← serverOutput
+    📁 templates/
+        📄 server.pot
+        📄 client.pot
+        📄 static.pot
+    📄 messages.pot
+    📄 en_US.po
+    📄 cs_CZ.po
+    📁 en_US/LC_MESSAGES/
+        📄 default.mo
+        📄 default.static.mo
+    📁 cs_CZ/LC_MESSAGES/
+        📄 default.mo
+        📄 default.static.mo
+
+📁 public/data/zolinga-intl/default/locale/  ← clientJsonOutput
+    📄 en-US.json
+    📄 cs-CZ.json
 ```
 
 ## Troubleshooting
@@ -137,7 +161,8 @@ bin/zolinga gettext:compile --domains=my-domain
 - `modules/zolinga-intl/wiki/ref/event/gettext/extract.md` — CLI extract event docs
 - `modules/zolinga-intl/wiki/ref/event/gettext/compile.md` — CLI compile event docs
 - `modules/zolinga-intl/src/GettextCli.php` — CLI handler for extract/compile
-- `modules/zolinga-intl/src/Gettext/Extractor.php` — string extraction logic
-- `modules/zolinga-intl/src/Gettext/Compiler.php` — PO→MO + HTML compilation
+- `modules/zolinga-intl/src/Gettext/Extractor.php` — string extraction logic (PHP, JS, HTML)
+- `modules/zolinga-intl/src/Gettext/Compiler.php` — PO→MO + HTML translation
 - `modules/zolinga-intl/src/Gettext/JavascriptCompiler.php` — PO→JSON compilation
-- `modules/zolinga-intl/src/Gettext/JavascriptExtractor.php` — JS-specific extraction
+- `modules/zolinga-intl/src/I18nService.php` — `$api->i18n` domain discovery service
+- `modules/zolinga-intl/src/Models/GettextDocument.php` — DOM-based HTML translation model

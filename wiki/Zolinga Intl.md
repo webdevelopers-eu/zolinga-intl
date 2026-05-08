@@ -21,6 +21,8 @@ Zolinga is focused on multilingual support. This means that the system is design
 
 - `$api->locale` 
   - service to get and set the current locale and more.
+- `$api->i18n`
+  - service to discover gettext domains (modules + built-in `default` domain).
 - **Dynamic PHP** 
   - script translation using the `gettext` library. You can use [dgettext](https://www.php.net/manual/en/function.dgettext.php) or [ngettext](https://www.php.net/manual/en/function.ngettext.php) functions anywhere in your PHP code. Read more [here](:Zolinga Intl:PHP).
   - Example: `echo dgettext('zolinga-intl', 'Hello');`

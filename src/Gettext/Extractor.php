@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Zolinga\Intl\Gettext;
 
+use Zolinga\Intl\Models\GettextDocument;
 use Zolinga\Intl\Types\FileTypes;
-use const Zolinga\System\ROOT_DIR;
 
 /**
  * Extract translatable strings from source files and create language po files.
@@ -56,6 +56,8 @@ class Extractor extends GettextAbstract
         // Write minimal header for idempotency (xgettext --join-existing needs existing file)
         $this->initPotFile($potFile);
         $this->extractInBatches(FileTypes::PHP, $potFile, "--add-location -L PHP");
+        $this->splitContextInPotFile($potFile);
+        $this->fixEscapedSlashesInPotFile($potFile);
     }
 
     /**
@@ -67,6 +69,8 @@ class Extractor extends GettextAbstract
         $this->ensureTemplatesDir();
         $this->initPotFile($potFile);
         $this->extractInBatches(FileTypes::JAVASCRIPT, $potFile, "--add-location -L JavaScript --keyword=__ --keyword=_n:1,2");
+        $this->splitContextInPotFile($potFile);
+        $this->fixEscapedSlashesInPotFile($potFile);
     }
 
     /**
@@ -86,6 +90,87 @@ class Extractor extends GettextAbstract
         }
         $cmd = $this->getExtractCmd([$tmpFile], $potFile, '-L PHP --no-location');
         $this->exec("$cmd 2>&1", "Extracting gettext strings from HTML files...");
+        $this->splitContextInPotFile($potFile);
+        $this->fixEscapedSlashesInPotFile($potFile);
+    }
+
+    /**
+     * Post-process a .pot file: unescape \/ back to /.
+     *
+     * xgettext escapes forward slashes as \/ in .pot files. While this is valid
+     * C-style escaping, msgmerge treats \< as an invalid control sequence and
+     * fails with "invalid control sequence". This method reverts \/ to /.
+     *
+     * @param string $potFile Absolute path to the .pot file to process.
+     */
+    private function fixEscapedSlashesInPotFile(string $potFile): void
+    {
+        $content = file_get_contents($potFile);
+        if ($content === false) {
+            return;
+        }
+        $content = str_replace('\\/', '/', $content);
+        file_put_contents($potFile, $content);
+    }
+
+    /**
+     * Issue: gettext does not treat "context\x04message" as a msgctxt + msgid pair
+     * 
+     * Post-process a .pot file: find msgid values containing the \x04 context
+     * separator and rewrite them as proper msgctxt + msgid pairs.
+     *
+     * xgettext extracts "context\x04message" as a single msgid; this method
+     * converts those entries to the standard POT form:
+     *
+     *   msgctxt "context"
+     *   msgid "message"
+     *
+     * @param string $potFile Absolute path to the .pot file to process.
+     */
+    private function splitContextInPotFile(string $potFile): void
+    {
+        global $api;
+        $api->log->info('i18n', "Post-processing $potFile to split context and message (if needed)");
+        
+        $content = file_get_contents($potFile);
+        if ($content === false) {
+            return;
+        }
+
+        // Match a complete POT entry block. We look for msgid "..." lines where
+        // the assembled value contains the \x04 byte and rewrite them.
+        // POT msgid values may be split across multiple "..." continuation lines.
+        $changed = false;
+        $content = preg_replace_callback(
+            '/^(msgid\s+(?:"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"\s*)+)/m',
+            function (array $m) use (&$changed): string {
+                $block = $m[1];
+
+                // Assemble the raw string value from all quoted segments.
+                $assembled = '';
+                preg_match_all('/"((?:[^"\\\\]|\\\\.)*)"/s', $block, $parts);
+                foreach ($parts[1] as $segment) {
+                    // Unescape xgettext C-style escapes to get the real bytes.
+                    $assembled .= stripcslashes($segment);
+                }
+
+                $sepPos = strpos($assembled, "\x04");
+                if ($sepPos === false) {
+                    return $block; // no context separator – leave untouched
+                }
+
+                $changed = true;
+                $ctx = substr($assembled, 0, $sepPos);
+                $msg = substr($assembled, $sepPos + 1);
+
+                return 'msgctxt ' . json_encode($ctx) . "\nmsgid " . json_encode($msg) . "\n";
+            },
+            $content
+        );
+
+        if ($changed) {
+            file_put_contents($potFile, $content);
+        }
     }
 
     /**
@@ -179,7 +264,7 @@ class Extractor extends GettextAbstract
         return $cmd;
     }
 
-    /**
+   /**
      * Extract translatable strings from the HTML file.
      * 
      * The format is expected to be: <element gettext="tag tag ...">...</element>
@@ -193,26 +278,16 @@ class Extractor extends GettextAbstract
     {
         global $api;
 
-        if (!in_array($this->getGettextMode($file, ''), ['translate'])) {
+        if (!in_array(GettextDocument::getGettextMode($file, ''), ['translate'])) {
             return '';
         }
-        $api->log->info('i18n', "📄 Preparing extraction from $file");
 
-        $relativeFile = $api->fs->toZolingaUri($file);
+        $doc = new GettextDocument($file);
         $strings = [];
-        $doc = $this->loadHtmlFile($file);
 
-        foreach ($this->findTranslatables($doc) as $node) {
-            foreach ($this->parseGettextAttr($node->nodeValue) as ['domain' => $domain, 'keyword' => $keyword, 'hash' => $hash]) {
-                if ($hash) {
-                    // Already translated
-                    continue;
-                } elseif ($keyword == '.') {
-                    $strings[] = $this->makePhpLine($domain ?: null, $node->ownerElement->nodeValue, "$relativeFile: Text content of " . $doc->saveXML($node));
-                } else {
-                    $strings[] = $this->makePhpLine($domain ?: null, $node->ownerElement->getAttribute($keyword), "$relativeFile: Attr $keyword of " . $doc->saveXML($node));
-                }
-            }
+        foreach ($doc->translatables as $id => $node) {
+            ["domain" => $domain, "keyword" => $keyword, "hash" => $hash] = GettextDocument::parseTranslatableKey($id);          
+            $strings[] = $this->makePhpLine($domain, $node->gettextString, $doc->filePath . " ($id)");
         }
         $strings = array_unique($strings);
         return implode("\n", $strings) . "\n";
@@ -238,9 +313,9 @@ class Extractor extends GettextAbstract
 
         $ret = "// " . addcslashes($comment, "\n\r\t") . "\n";
         if ($domain) {
-            $ret .= "dgettext(" . json_encode($domain) . ", " . json_encode($string) . ");\n";
+            $ret .= "dgettext(" . var_export($domain, true) . ", " . var_export($string, true) . ");\n";
         } else {
-            $ret .= "_(" . json_encode($string) . ");\n";
+            $ret .= "_(" . var_export($string, true) . ");\n";
         }
 
         return $ret;

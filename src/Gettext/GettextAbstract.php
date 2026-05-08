@@ -17,12 +17,6 @@ class GettextAbstract
 {
 
 
-    /**
-     * The regular expression to match the gettext tag: {domain}:{keyword}#{hash}
-     * 
-     * @var string
-     */
-    protected const TAG_RE = '/^(?:(?<domain>\w+):)?(?<keyword>\w+|\.)(?:#(?<hash>\w+))?$/';
 
     /**
      * The list of files to exclude from the gettext operations.
@@ -38,12 +32,6 @@ class GettextAbstract
      */
     protected const IGNORED_EXTENSIONS = ['*~', '*.bak', '*.orig', '*.swp'];
 
-    /**
-     * The name of the HTML attribute to translate.
-     * 
-     * @var string
-     */
-    protected const MARKUP_NAME = 'gettext';
 
     /**
      * The gettext domain descriptor.
@@ -69,23 +57,8 @@ class GettextAbstract
         $this->locales = array_unique([
             ...$api->locale->supportedLocales,
             'en_US',
-            ...$this->findExistingPoLocales($domain->serverOutput),
+            ...$this->domain->localesWithPO,
         ]);
-    }
-
-    /**
-     * Find locales that already have .po files in the server output directory.
-     *
-     * @param string $serverOutput
-     * @return array<string>
-     */
-    private function findExistingPoLocales(string $serverOutput): array
-    {
-        $locales = [];
-        foreach (glob($serverOutput . '/*.po') ?: [] as $file) {
-            $locales[] = basename($file, '.po');
-        }
-        return $locales;
     }
 
     /**
@@ -212,105 +185,5 @@ class GettextAbstract
         chdir($cwd);
 
         return $output;
-    }
-
-    protected function loadHtmlFile(string $file): \DOMDocument
-    {
-        $doc = new \DOMDocument();
-        // fix html5/svg errors - libxml_use_internal_errors
-        $errorsVal = libxml_use_internal_errors();
-        libxml_use_internal_errors(true);
-
-        $content = file_get_contents($file) or throw new \RuntimeException("Cannot read file: $file");
-
-        // If it contains <meta ... content="text/html; charset=UTF-8"> or <meta ... charset="UTF-8">, we don't need to add it 
-        if (!preg_match('/<meta[^>]+charset=/i', $content)) {
-            if (stripos($content, '</head')) {
-                $content = str_replace('</head', '<meta charset="UTF-8" /></head', $content);
-            }
-        }
-
-        $doc->loadHTML($content, LIBXML_NONET | LIBXML_NOCDATA | LIBXML_NOXMLDECL);
-        libxml_use_internal_errors($errorsVal);
-
-        return $doc;
-    }
-
-    /**
-     * Find all translatable elements in the HTML document.
-     *
-     * @param \DOMDocument $doc
-     * @param bool $addUtfMeta Add <meta charset="UTF-8"> if not present.
-     * @return array<\DOMAttr>
-     */
-    protected function findTranslatables(\DOMDocument $doc, bool $addUtfMeta = false): array
-    {
-        $xpath = new \DOMXPath($doc);
-
-        if ($addUtfMeta) {
-            $head = $doc->getElementsByTagName('head')->item(0);
-            if ($head && !$xpath->evaluate('count(//meta[@charset="UTF-8"])', $head)) {
-                $meta = $doc->createElement('meta');
-                $meta->setAttribute('charset', 'UTF-8');
-                $head->appendChild($meta);
-            }
-        }
-
-        $results = $xpath->query("//@" . self::MARKUP_NAME)
-            or throw new \RuntimeException("Cannot query the document to extract translatable elements: " . self::MARKUP_NAME);
-        /** @var array<\DOMAttr> $ret */
-        $ret = iterator_to_array($results);
-        return $ret;
-    }
-
-    /**
-     * Parse @gettext attribute and return array of [domain, keyword, hash].
-     *
-     * @param string $tags of white space separated tags in format [domain:](attribute|.)[#hash]
-     * @return array<string, array{domain: ?string, keyword: string, hash: ?string}> of tag => [domain, keyword, hash]
-     */
-    protected function parseGettextAttr(string $tags): array
-    {
-        global $api;
-
-        $list = [];
-
-        foreach (preg_split('/\s+/', $tags) ?: [] as $tag) {
-            if (!preg_match(self::TAG_RE, $tag, $matches)) {
-                $api->log->error('i18n', "Invalid gettext tag: $tag");
-                continue;
-            }
-            $list[$tag] = [
-                'domain' => $matches['domain'] ?? null,
-                'keyword' => $matches['keyword'],
-                'hash' => $matches['hash'] ?? null
-            ];
-        }
-
-        return $list;
-    }
-
-    /**
-     * Extract the value from <meta name="gettext" content="{VALUE}">.
-     *
-     * @param string $file
-     * @param string|null $default
-     * @return string|null
-     */
-    protected function getGettextMode(string $file, ?string $default = null): string|null
-    {
-        $meta = get_meta_tags($file);
-        return $meta['gettext'] ?? $default;
-    }
-    
-    /**
-     * Calculate the short hash from the string.
-     *
-     * @param string $strid
-     * @return string
-     */
-    protected function calculateHash(string $strid): string
-    {
-        return substr(sha1($strid), 0, 6);
     }
 }

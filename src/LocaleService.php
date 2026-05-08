@@ -385,6 +385,8 @@ class LocaleService implements ServiceInterface
 
     private function testGettext(string $domain, ?string $path = null): bool
     {
+        global $api;
+
         // Test
         $testString = '';
         if (dgettext($domain, $testString)) { // on purpose we use variable in dgettext("zolinga-rms", ) to avoid extraction by gettext
@@ -403,7 +405,8 @@ class LocaleService implements ServiceInterface
         // Check the files
         $moPath = $path . "/$this->locale/LC_MESSAGES/$domain.mo";
         if (!is_file($moPath) || !is_readable($moPath)) {
-            trigger_error("GETTEXT: The compiled dictionary file $moPath is missing or is not readable. Did you compile the dictionary?", E_USER_WARNING);
+            $zMoPath = $api->fs->toZolingaUri($moPath);
+            trigger_error("GETTEXT: The compiled dictionary file $zMoPath is missing or is not readable. Did you compile the dictionary?", E_USER_WARNING);
             return false;
         }
 

@@ -69,7 +69,6 @@ class GettextDomain implements \Stringable
     public function __toString(): string
     {
         // 🈯 🈳 🈵
-        $icon = count($this->localesWithPO) ? '🈯' : '🈵';
-        return "{$icon} Gettext[{$this->name}]";
+        return "🈯 Gettext[{$this->name}]";
     }
 }

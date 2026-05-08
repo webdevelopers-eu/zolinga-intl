@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Zolinga\Intl\Gettext;
 
-use DOMDocument;
+use Zolinga\Intl\Models\GettextDocument;
 use Zolinga\Intl\Types\FileTypes;
+use Zolinga\Intl\Types\GettextModeEnum;
+
 use const Zolinga\System\ROOT_DIR;
 
 /**
@@ -119,16 +121,12 @@ class Compiler extends GettextAbstract
 
         $files = $this->findFiles(FileTypes::HTML, self::EXCLUDE_FILES);
         foreach ($files as $file) {
-            if ($this->getGettextMode($file) === 'translate') {
-                ['template' => $templateDoc, 'dictionary' => $dictionary] = $this->buildFileDictionary($file);
-
-                $defaultDomain = parse_url($api->fs->toZolingaUri($file), PHP_URL_HOST) ?: 'default';
-
+            if (GettextDocument::getGettextMode($file) === 'translate') {
                 foreach ($this->domain->localesWithPO as $locale) {
-                    $api->log->info('i18n', "🈳 Translating $file to $locale...");
                     if ($locale !== 'en_US') { // default
+                        $api->log->info('i18n', "🈳 Translating $file to $locale...");
                         $targetFile = $this->mkFileName($file, $locale);
-                        $this->generateHtmlFile($targetFile, $locale, $defaultDomain, $templateDoc, $dictionary);
+                        $this->generateHtmlFile($file, $targetFile, $locale);
                     }
                 }
             }
@@ -139,132 +137,48 @@ class Compiler extends GettextAbstract
      *  Create a target document either by replacing the target file or by cherry-picking the translatable nodes.
      * 
      * It will translate the translatable strings from $dictionary and save the result to $targetFile.
-     * 
-     * @param  string $targetFile the target file to be created
-     * @param  string $locale the target locale
-     * @param  string $defaultDomain the default domain for the translation
-     * @param  DOMDocument $templateDoc the template document
-     * @param  array<string, string> $dictionary the dictionary of "DOMAIN:#HASH" => STRID
-     * @return void
      */
-    private function generateHtmlFile(string $targetFile, string $locale, string $defaultDomain, DOMDocument $templateDoc, array $dictionary): void
+    private function generateHtmlFile(string $sourceFile, string $targetFile, string $locale): void
     {
         global $api;
 
         $oldLocale = $api->locale->locale;
         $api->locale->locale = $locale;
-        $mode = file_exists($targetFile) ? $this->getGettextMode($targetFile) : 'replace';
+        // We want ::from and not ::tryFrom because at this stage there must be valid gettext mode
+        $mode = GettextModeEnum::from(file_exists($targetFile) ? GettextDocument::getGettextMode($targetFile) : 'replace');
 
+        $sourceDoc = new GettextDocument($sourceFile);
 
-        switch ($mode) {
-            case 'replace':
-                $api->log->info('i18n', "📄 Replacing $targetFile ($locale)");
-                $targetDoc = $templateDoc->cloneNode(true);
-                foreach ($targetDoc->getElementsByTagName('meta') as $el) {
-                    if ($el->getAttribute('name') === 'gettext') {
-                        $el->setAttribute('content', 'replace');
-                    }
+        $targetDoc = new GettextDocument($mode === GettextModeEnum::REPLACE || !file_exists($targetFile) ? $sourceFile : $targetFile);
+        $targetDoc->gettextMode = $mode;
+
+        try {
+            foreach ($targetDoc->translatables as $id => $node) {
+                $template = $sourceDoc->translatables[$id];
+                if ($template) {
+                    $string = $template->gettextString;
+                    $domain = $template->gettextDomain . '.static';
+                    $translation = dgettext($domain, $string);
+                    if ($translation === $string) {
+                        $api->log->warning('i18n', "Translation not found for string " . json_encode($string) . " in domain '$domain' for locale '$locale'.");
+                        $api->log->tip('i18n', "Check if the string exists in the source document and if it is correctly extracted to the PO file.");
+                    } else {
+                        $api->log->info('i18n', "Translating node with id $id: '$string' → '$translation'");
+                        $node->translate($translation, $template->descendantElements);
+                    } 
+                } else {
+                    $api->log->warning('i18n', "Translatable node with id $id not found in source document for $sourceFile. Skipping $locale translation for this node.");
                 }
-                break;
-            case 'cherry-pick':
-                $api->log->info('i18n', "📝 Cherry-picking $targetFile ($locale)");
-                $targetDoc = $this->loadHtmlFile($targetFile);
-                break;
-            default:
-                $api->log->error('i18n', "$targetFile: gettext meta not set or invalid in file $targetFile: " . json_encode($mode) . " Expected <meta name='gettext' content='replace|cherry-pick'/>");
-                return;
+            }
+        } catch (\Exception $e) {
+            $api->log->error('i18n', "Error translating $sourceFile to $locale: " . $e->getMessage());
+            return;
         }
-        $this->translateHtmlStrings($targetDoc, $dictionary, $defaultDomain);
 
         $targetDoc->encoding = 'UTF-8';
         $targetDoc->substituteEntities = false;        
         $targetDoc->saveHTMLFile($targetFile);
         $api->locale->locale = $oldLocale;
-    }
-
-    /**
-     * Translate all translatable strings from $doc using $dictionary.
-     * 
-     * Dictionary holds keys in the format "DOMAIN:#HASH" => STRID. We use preferably the HASH if it exists in @gettext attribute.
-     * 
-     * If the $doc @gettext attribute does not have HASH that means that user modified translated document (the "cherry-pick" mode) 
-     * and we need to calculate the HASH from the string. The string is expected to be English strid initially.
-     * 
-     * It will modify the input $doc.
-     *
-     * @param DOMDocument $doc the target document to be translated. It will be modified.
-     * @param array<string,string> $dictionary the dictionary of "DOMAIN:#HASH" => STRID
-     * @param string $defaultDomain the default domain for the translation
-     * @return void
-     */
-    private function translateHtmlStrings(DOMDocument $doc, array $dictionary, string $defaultDomain): void {
-        global $api;
-
-        foreach ($this->findTranslatables($doc, true) as $node) {
-            $tags = [];
-            foreach ($this->parseGettextAttr($node->nodeValue) as $tag => ['domain' => $domain, 'keyword' => $keyword, 'hash' => $hash]) {
-                if (!$hash) { // new translation
-                    $strId = $keyword == '.' ? $node->ownerElement->nodeValue : $node->ownerElement->getAttribute($keyword);
-                    $hash = $this->calculateHash($strId);
-                    $dictionary["$domain:#$hash"] = $strId;
-                } else {
-                    $strId = $dictionary["$domain:#$hash"] ?? '';
-                }
-                if (!$strId) {
-                    $api->log->error('i18n', "". $doc->documentURI .": $keyword#$hash not found in dictionary: " . $doc->saveXML($node->ownerElement). " Was the corresponding string removed from the source file? You can copy the missing element from source file into translation file. ");
-                    $tags[] = $tag;
-                    continue;
-                }
-                $resolvedDomain = $domain ?: $defaultDomain;
-                $translated = dgettext($resolvedDomain . '.static', $strId);
-
-                if ($keyword == '.') {
-                    $node->ownerElement->nodeValue = $translated;
-                } else {
-                    $node->ownerElement->setAttribute($keyword, $translated);
-                }
-
-                $tags[] = ($domain ? "$domain:" : '') . "$keyword#$hash";
-            }
-            $node->nodeValue = implode(' ', $tags);
-        }
-    }
-
-    /**
-     * Opens source file and builds a template by adding hashes to @gettext attributes.
-     * 
-     * Also builds an array of "DOMAIN:#HASH" => STRID for the translation process.
-     *
-     * @param mixed $file
-     * @return array{template: DOMDocument, dictionary: array<string, string>}
-     */
-    private function buildFileDictionary($file): array
-    {
-        global $api;
-
-        $doc = $this->loadHtmlFile($file);
-        $dictionary = [];
-        foreach ($this->findTranslatables($doc) as $node) {
-            $tags = [];
-            foreach ($this->parseGettextAttr($node->nodeValue) as ['domain' => $domain, 'keyword' => $keyword, 'hash' => $hash]) {
-                if ($hash) {
-                    $api->log->error('i18n', "$file: $keyword already translated in source $file: " . $doc->saveXML($node->ownerElement));
-                    continue;
-                }
-                $string = $this->normalizeString($keyword == '.' ? $node->ownerElement->nodeValue : $node->ownerElement->getAttribute($keyword));
-                $hash = $this->calculateHash($string);
-                $dictionary["$domain:#$hash"] = $string;
-                $tags[] = ($domain ? "$domain:" : '') . "$keyword#$hash";
-            }
-            $node->nodeValue = implode(' ', $tags);
-        }
-
-        return ['template' => $doc, 'dictionary' => $dictionary];
-    }
-
-    private function normalizeString(string $string): string
-    {
-        return trim(preg_replace('/\s+/', ' ', $string));
     }
 
     private function mkFileName(string $file, string $locale): string
