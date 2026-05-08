@@ -60,16 +60,9 @@ class GettextDocument extends DOMDocument implements \Stringable
         $errorsVal = libxml_use_internal_errors();
         libxml_use_internal_errors(true);
 
-        $content = file_get_contents($file) or throw new \RuntimeException("Cannot read file: $file");
+        $html = file_get_contents($file) or throw new \RuntimeException("Cannot read file: $file");
+        $this->loadHTML("<?xml encoding=\"utf-8\" ?>\n".$html, LIBXML_NOERROR | LIBXML_NONET | LIBXML_COMPACT | LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
 
-        // If it contains <meta ... content="text/html; charset=UTF-8"> or <meta ... charset="UTF-8">, we don't need to add it 
-        if (!preg_match('/<meta[^>]+charset=/i', $content)) {
-            if (stripos($content, '</head')) {
-                $content = str_replace('</head', '<meta charset="UTF-8" /></head', $content);
-            }
-        }
-
-        $this->loadHTML($content, LIBXML_NONET | LIBXML_NOCDATA | LIBXML_NOXMLDECL);
         libxml_use_internal_errors($errorsVal);
 
         $this->xpath = new DOMXPath($this);
