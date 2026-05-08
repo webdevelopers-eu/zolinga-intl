@@ -86,6 +86,8 @@ To extract the translatable strings from the HTML file, you need to run the `bin
 bin/zolinga gettext:extract --domains=MyModule
 ```
 
+**Note**: This command modifies source HTML files in place by adding `#HASH` suffixes to `gettext` attributes. Commit the updated source files after extraction.
+
 This will generate `{MODULE}/locale/{language}_{TERRIRORY}.po` files with the translatable strings. You need to translate the strings in these files and
 then run the `bin/zolinga gettext:compile [--domains={DOMAINS}]` command to generate the translated HTML files. After running the compilation command,
 the translated HTML files will be created with `*.{langugage}-{TERRITORY}.html` suffix in the same directory as source HTML files.
@@ -136,7 +138,25 @@ Example of the translated file `index.cs-CZ.html` with `<meta name="gettext" con
 
 In this example, the `<title>` and `<meta name="description">` elements will be updated with the latest translations, but the rest of HTML including `<h1>` and `<p>` elements will remain untouched solely in the discretion of the translator.
 
-Note that the `gettext` attributes in the translated file have `\#HASH` suffixes. These are used to identify the original `msgid` strings in the `.po` files. If you need to add new translatable string into cherry-picked file, just add the untranslated English version of it and mark it with `gettext` attribute as usual. On next compilation it will be translated using `.po` files and the `\#HASH` suffix will be added to it. 
+Note that the `gettext` attributes in the translated file have `#HASH` suffixes. These are used to identify the original `msgid` strings in the `.po` files. If you need to add new translatable string into cherry-picked file, just add the untranslated English version of it and mark it with `gettext` attribute as usual. On next compilation it will be translated using `.po` files and the `#HASH` suffix will be added to it.
+
+### Hash Suffixes in Source Files
+
+When you run `bin/zolinga gettext:extract`, **source HTML files are modified in place**: each keyword in every `gettext` attribute receives a `#`-prefixed 6-character hash suffix. These hashes uniquely identify each translatable element and serve as stable links between source and translated files. The compiler uses matching hashes to find the corresponding `msgid` in `.po` files and to update translated elements correctly.
+
+Before extraction:
+```html
+<h1 gettext=".">Hello</h1>
+<p gettext=". title" title="Welcome!">Hello!</p>
+```
+
+After extraction:
+```html
+<h1 gettext=".#a3f2b1">Hello</h1>
+<p gettext=".#d2bc00 title#1396ff" title="Welcome!">Hello!</p>
+```
+
+**Important**: Since extraction modifies source files, commit the updated files after running `gettext:extract`. 
 
 _Warning_: If you modify the master HTML file, the cherry-picked HTML files will not be updated automatically. E.g. if you add CSS styles or images, they will not be added to the translated files. You will need to manually update the translated files. The `<meta name="gettext" content="replace"/>` is the best option for most cases as it regenerates the whole file and keeps it up to date with the master file.
 

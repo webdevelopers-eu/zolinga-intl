@@ -28,6 +28,26 @@ bin/zolinga gettext:extract [--domains={DOMAINS}]
 
 When no `--domains` option is provided, the command extracts translations for all domains (module domains plus the built-in `default` domain).
 
+## Source File Modification
+
+During extraction, **source HTML files are modified in place**: each keyword in every `gettext` attribute receives a `#`-prefixed 6-character hash suffix that uniquely identifies the element across source and translation files. For example:
+
+Before extraction:
+```html
+<h1 gettext=".">Hello</h1>
+<p gettext=". title" title="Welcome!">Hello!</p>
+```
+
+After extraction:
+```html
+<h1 gettext=".#a3f2b1">Hello</h1>
+<p gettext=".#d2bc00 title#1396ff" title="Welcome!">Hello!</p>
+```
+
+These hashes serve as stable links between source and translated files — the compiler uses matching hashes to find the corresponding `msgid` in `.po` files and to update translated elements correctly, even when the surrounding HTML structure changes.
+
+**Important**: Since extraction modifies source files, commit the updated files after running `gettext:extract`.
+
 Related:
 - [Gettext Compile Event](:ref:event:gettext:compile)
 - [Zolinga Internationalization Module](:Zolinga Intl)

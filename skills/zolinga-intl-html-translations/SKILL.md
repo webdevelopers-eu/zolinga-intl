@@ -101,6 +101,8 @@ The `<meta name="gettext" content="..."/>` in the **generated** file controls be
 
 Run `bin/zolinga gettext:extract --domains=my-module,default` to generate `.po` files, then translate and compile.
 
+**Important**: `gettext:extract` modifies source HTML files in place — each keyword in every `gettext` attribute receives a `#`-prefixed 6-character hash suffix that uniquely identifies the element. For example, `gettext="."` becomes `gettext=".#a3f2b1"` and `gettext=". title"` becomes `gettext=".#d2bc00 title#1396ff"`. These hashes link source elements to their translations across files. Commit the updated source files after extraction.
+
 Note that all translations not in a module but in data folders like `data/` or `public/data` can be translated using the built-in `default` domain. Use `--domains=default` to extract and compile these translations.
 
 See also: **zolinga-intl-multilingual-support** for the full pipeline.

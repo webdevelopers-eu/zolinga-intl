@@ -44,6 +44,7 @@ The translation workflow consists of the following steps
     * translating [JavaScript](:Zolinga Intl:JavaScript) dynamic files
 - **Extracting the translatable strings**
   - You need to extract the translatable strings from your code. This will generate a `.po` files by scanning your code. The scanning and extraction is done by the `bin/zolinga gettext:extract --domains={DOMAINS}` command. `--domains` accepts a comma-separated list of domains. The result are `.po` files in the `locale` directory of the module.
+  - **Note**: This command modifies source HTML files in place by adding `#HASH` suffixes to `gettext` attributes. These hashes uniquely identify each translatable element and link source elements to their translations across files. Commit the updated source files after extraction.
 - **Translating the strings**
   - You need to translate untranslated strings in the `{MODULE}/locale/*.po` files. You can use any text editor or a specialized translation tool like [Poedit](https://poedit.net/).
 - **Compiling the translations**

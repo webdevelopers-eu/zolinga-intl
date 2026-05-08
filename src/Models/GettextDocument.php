@@ -259,12 +259,11 @@ class GettextDocument extends DOMDocument implements \Stringable
     /**
      * Calculate the short hash from the string.
      *
-     * @param string $strid
-     * @return string
+     * @return string The 6-character hash string
      */
-    public static function calculateHash(string $strid): string
+    public static function generateRandomHash(): string
     {
-        return substr(sha1($strid), 0, 6);
+        return substr(sha1(microtime(true) . rand(0, 1000000)), 0, 6);
     }
 
     /**

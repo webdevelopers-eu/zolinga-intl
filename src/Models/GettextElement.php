@@ -27,7 +27,7 @@ class GettextElement extends DOMElement implements GettextNodeInterface
             return false; // hash already exists, no need to update
         }
 
-        $newHash = GettextDocument::calculateHash(microtime(true) . rand(0, 1000000));
+        $newHash = GettextDocument::generateRandomHash();
         GettextDocument::updateGettextAttrHash($this->gettextAttribute, '.', $newHash);
 
         return true; // hash was updated

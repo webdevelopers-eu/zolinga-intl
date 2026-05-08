@@ -16,7 +16,7 @@ The workflow is always: **Mark → Extract → Translate → Compile → Verify*
 | Extract strings from selected domains | `bin/zolinga gettext:extract --domains=<domains>[,<domains>]` |
 | Compile translations for all domains | `bin/zolinga gettext:compile --all` |
 | Compile translations for selected domains | `bin/zolinga gettext:compile --domains=<domains>[,<domains>]` |
-
+**Note**: `gettext:extract` modifies source HTML files in place by adding `#HASH` suffixes to `gettext` attributes. These hashes uniquely identify each translatable element and link source elements to their translations. Commit the updated source files after extraction.
 ## Configure Locales
 
 Edit `config/global.json`:
