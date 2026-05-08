@@ -293,6 +293,7 @@ class Extractor extends GettextAbstract
         }
 
         if ($changed) {
+            $doc->documentElement->setAttribute('lang', 'en-US');
             $doc->save($file);
             $api->log->info('i18n', "Updated $file with gettext-hash attributes for translatable nodes");
         }

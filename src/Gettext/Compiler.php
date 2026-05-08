@@ -160,6 +160,7 @@ class Compiler extends GettextAbstract
         $sourceDoc = new GettextDocument($sourceFile);
         $targetDoc = new GettextDocument($mode === GettextModeEnum::REPLACE || !file_exists($targetFile) ? $sourceFile : $targetFile);
         $targetDoc->gettextMode = $mode;
+        $targetDoc->documentElement->setAttribute('lang', str_replace('_', '-', $locale));
 
         try {
             foreach ($targetDoc->translatables as $id => $node) {
