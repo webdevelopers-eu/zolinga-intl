@@ -1,6 +1,6 @@
 ---
 name: zolinga-intl-html-translations
-description: Use when writing HTML that needs static translation via gettext attributes. Covers the gettext attribute syntax, meta tag, and translation modes.
+description: Use when writing HTML that needs static translation via gettext attributes. Covers the gettext attribute syntax, gettext-context, nested element translation, meta tag, and translation modes.
 argument-hint: "<module-name>"
 ---
 
@@ -30,7 +30,7 @@ Add `<meta name="gettext" content="translate"/>` in `<head>`:
 The `gettext` attribute is a whitespace-separated list of keywords:
 
 | Keyword | Meaning |
-|---------|---------|
+|---------|----------|
 | `.` | Translate element's text content |
 | `title` | Translate the `title` attribute |
 | `alt` | Translate the `alt` attribute |
@@ -48,6 +48,43 @@ Examples:
 <span gettext="my-module:.">Domain-specific text</span>
 ```
 
+## Context with gettext-context
+
+Use `gettext-context` on an element or any ancestor to disambiguate identical strings:
+
+```html
+<div>
+  <a gettext-context="navigation" gettext=".">Home</a>
+</div>
+<div gettext-context="homepage">
+  <h1 gettext=".">Home</h1>
+</div>
+```
+
+The extractor uses the closest `gettext-context` attribute on the element or its ancestors as the `msgctxt` in `.po` files.
+
+## Nested Element Translation
+
+The `gettext="."` attribute works on elements containing **other elements** too. Child elements become numbered placeholders:
+
+```html
+<div gettext=".">Click <a href="/">here</a> to go to <i>homepage</i>.</div>
+```
+
+This appears in `.po` as: `Click <1>here</1> to go to <2>homepage</2>.`
+
+The translator keeps the placeholders and translates around them:
+
+```
+msgstr "Kliknete <1>zde</1> pro navstevu <2>domaci stranky</2>."
+```
+
+The compiler expands placeholders back to full HTML:
+
+```html
+<div gettext=".">Kliknete <a href="/">zde</a> pro navstevu <i>domaci stranky</i>.</div>
+```
+
 ## Translation Modes
 
 The `<meta name="gettext" content="..."/>` in the **generated** file controls behavior on recompilation:
@@ -62,6 +99,8 @@ The `<meta name="gettext" content="..."/>` in the **generated** file controls be
 
 ## After Marking Strings
 
-Run `bin/zolinga gettext:extract --domains=my-module` to generate `.po` files, then translate and compile.
+Run `bin/zolinga gettext:extract --domains=my-module,default` to generate `.po` files, then translate and compile.
+
+Note that all translations not in a module but in data folders like `data/` or `public/data` can be translated using the built-in `default` domain. Use `--domains=default` to extract and compile these translations.
 
 See also: **zolinga-intl-multilingual-support** for the full pipeline.

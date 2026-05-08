@@ -43,6 +43,41 @@ Examples:
 <p gettext="title ." title="Will be translated too">This is a translatable paragraph with a title.</p>
 ```
 
+# Context with gettext-context
+
+Use the `gettext-context` attribute on an element or any ancestor to disambiguate identical strings. The extractor uses the closest `gettext-context` attribute as the `msgctxt` in `.po` files:
+
+```html
+<div gettext-context="navigation">
+  <a gettext=".">Home</a>
+</div>
+<div gettext-context="homepage">
+  <h1 gettext=".">Home</h1>
+</div>
+```
+
+# Nested Element Translation
+
+The `gettext="."` attribute works on elements containing **other elements** too. Child elements become numbered placeholders in the `.po` file:
+
+```html
+<div gettext=".">Click <a href="/">here</a> to go to <i>homepage</i>.</div>
+```
+
+This appears in `.po` as: `Click <1>here</1> to go to <2>homepage</2>.`
+
+The translator keeps the placeholders and translates around them:
+
+```
+msgstr "Kliknete <1>zde</1> pro navstevu <2>domaci stranky</2>."
+```
+
+The compiler expands placeholders back to full HTML:
+
+```html
+<div gettext=".">Kliknete <a href="/">zde</a> pro navstevu <i>domaci stranky</i>.</div>
+```
+
 # Translation Workflow
 
 To extract the translatable strings from the HTML file, you need to run the `bin/zolinga gettext:extract [--domains={DOMAINS}]` command.
