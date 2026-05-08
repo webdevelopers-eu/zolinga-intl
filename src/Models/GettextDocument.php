@@ -150,7 +150,7 @@ class GettextDocument extends DOMDocument implements \Stringable
 
         if ($addedHashes) {
             $api->log->info('i18n', "Saving $this after adding permanent gettext-hash attributes");
-            $this->save($this->filePath);
+            $this->saveHTMLFile($this->filePath);
         }
     }
 
