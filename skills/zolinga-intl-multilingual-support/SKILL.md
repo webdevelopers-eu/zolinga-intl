@@ -12,9 +12,9 @@ The workflow is always: **Mark → Extract → Translate → Compile → Verify*
 
 | Task | Command |
 |------|---------|
-| Extract strings from all domains | `bin/zolinga gettext:extract` |
+| Extract strings from all domains | `bin/zolinga gettext:extract --all` |
 | Extract strings from one domain | `bin/zolinga gettext:extract --domains=<domains>` |
-| Compile translations for all domains | `bin/zolinga gettext:compile` |
+| Compile translations for all domains | `bin/zolinga gettext:compile --all` |
 | Compile translations for one domain | `bin/zolinga gettext:compile --domains=<domains>` |
 
 ## Configure Locales
