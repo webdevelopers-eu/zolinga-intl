@@ -410,7 +410,6 @@ class LocaleService implements ServiceInterface
             return false;
         }
 
-        echo __LINE__ . "\n";
         trigger_error(
             "The gettext domain '$domain' is not initialized properly for $this->locale ($path). " .
                 "[1] Is the string '' correctly translated and compiled dictionary files are in the right place? " .
