@@ -29,6 +29,9 @@ The first locale is the default. The `zolinga-intl` module's `zolinga.json` also
 
 ## Where to Edit .po Files
 
+### Rules of .po Editing
+- If the primary language is en_US, then do not touch/translate `en_US.po` files. They are the source of truth and should always contain the original English strings without any translations (gettext will return the `msgid` if the `msgstr` is empty, so leaving `en_US.po` untranslated is correct).  
+
 ### Module Domains
 
 For a module named `my-module`, edit only:
