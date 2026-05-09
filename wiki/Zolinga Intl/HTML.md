@@ -60,7 +60,7 @@ Use the `gettext-context` attribute on an element or any ancestor to disambiguat
 
 You can add comments for translators using HTML comments starting with `TRANSLATORS:`. These comments are extracted and included in `.pot`/`.po` files to provide context and instructions.
 
-## Two Supported Positions
+## Three Supported Positions
 
 ### 1. Before the @gettext Element (Traditional)
 
@@ -91,13 +91,37 @@ Place comments as the **first child** inside the @gettext element, before any te
 </div>
 ```
 
+### 3. Inherited from Ancestor Elements (New)
+
+Place comments before ancestor elements (`<body>`, `<html>`, `<head>`, `<article>`, `<section>`). These comments are inherited by **all** translatable elements inside those ancestors:
+
+```html
+<!-- TRANSLATORS: This is a legal disclaimer that applies to the entire article -->
+<!-- TRANSLATORS: Do not translate trademark names -->
+<article>
+  <h1 gettext=".">Welcome to IPDefender</h1>
+  <p gettext=".">IPDefender® provides trademark protection.</p>
+  <section>
+    <h2 gettext=".">Our Services</h2>
+    <p gettext=".">We offer comprehensive trademark monitoring.</p>
+  </section>
+</article>
+```
+
+All translatables inside the `<article>` will inherit both comments. This is useful for:
+- Legal disclaimers
+- Brand guidelines
+- Tone instructions
+- Domain-specific terminology rules
+
 ## Comment Rules
 
 The comment must:
 - Start with `TRANSLATORS:` (case-sensitive)
-- Be placed either:
-  - Immediately before the element with the `gettext` attribute, OR
-  - As the first child(ren) inside the element with the `gettext` attribute (before any text or non-comment nodes)
+- Be placed in one of three positions:
+  1. Immediately before the element with the `gettext` attribute
+  2. As the first child(ren) inside the element with the `gettext` attribute (before any text or non-comment nodes)
+  3. Before ancestor elements: `<body>`, `<html>`, `<head>`, `<article>`, or `<section>` (inherited by all descendants)
 - Be in a standard HTML comment `<!-- ... -->`
 
 Multiple comments can be used and will be concatenated in the `.po` file. This is useful for providing additional context, usage notes, or special instructions to translators.
@@ -127,7 +151,35 @@ Multiple comments can be used and will be concatenated in the `.po` file. This i
 <!-- Mixed: comments before and inside (both will be extracted) -->
 <!-- TRANSLATORS: This is important -->
 <span gettext="."><!-- TRANSLATORS: Also this -->Important text</span>
+
+<!-- Inherited comments from ancestor -->
+<!-- TRANSLATORS: Legal disclaimer applies to all content below -->
+<article>
+  <h1 gettext=".">Title</h1>
+  <p gettext=".">Content with inherited disclaimer</p>
+</article>
+
+<!-- Complex: all three types combined -->
+<!-- TRANSLATORS: Site-wide legal notice -->
+<body>
+  <!-- TRANSLATORS: Header-specific instruction -->
+  <header>
+    <h1 gettext=".">
+      <!-- TRANSLATORS: Nested comment for this specific heading -->
+      Welcome
+    </h1>
+  </header>
+</body>
 ```
+
+## Comment Extraction Order
+
+Comments are extracted in this order:
+1. Nested comments (inside the @gettext element)
+2. Preceding comments (immediately before the @gettext element)
+3. Inherited comments (from ancestor elements: body, html, head, article, section)
+
+All applicable comments are concatenated in the `.po` file.
 
 # Nested Element Translation
 

@@ -343,17 +343,21 @@ class Extractor extends GettextAbstract
         $comments = '';
 
         $element = $node instanceof GettextElement ? $node : $node->ownerElement;
-        /** @disregard */
-        $xpath = $element->ownerDocument->xpath;
 
         // Nested comments
         $axis = $this->sliceToFirstStopper(iterator_to_array($element->childNodes));
         $comments .= $this->extractComments($axis) ?? '';
 
         // Preceeding comments
-        $axis = iterator_to_array($xpath->query('preceding-sibling::node()', $element));
-        $axis = array_reverse($this->sliceToFirstStopper(array_reverse($axis)));
-        $comments .= $this->extractComments($axis) ?? '';
+        $comments .= $this->getPrecedingTranslatorsComments($element);
+
+        // Top-level comments before <body> | <html> | <head> | <article> | <section> (all of them combined)
+        $xpath = 'ancestor::body | ancestor::html | ancestor::head | ancestor::article | ancestor::section';
+        /** @disregard */
+        foreach ($element->ownerDocument->xpath->query($xpath, $element) as $ancestor) {
+            /** @var DOMElement $ancestor */
+            $comments .= $this->getPrecedingTranslatorsComments($ancestor);
+        }
 
         $ret = "$comments// " . ($comments ? '' : 'TRANSLATORS: ') . "SOURCE: " . $node->getNodePath() . " " . addcslashes($source, "\n\r\t") . "\n";
 
@@ -364,6 +368,18 @@ class Extractor extends GettextAbstract
         }
 
         return $ret;
+    }
+
+    private function getPrecedingTranslatorsComments(?DOMElement $element): string
+    {
+        if (!$element) {
+            return '';
+        }
+
+        /** @disregard */
+        $axis = iterator_to_array($element->ownerDocument->xpath->query('preceding-sibling::node()', $element));
+        $axis = array_reverse($this->sliceToFirstStopper(array_reverse($axis)));
+        return $this->extractComments($axis) ?? '';
     }
 
     private function sliceToFirstStopper(array $nodes): array
@@ -390,13 +406,13 @@ class Extractor extends GettextAbstract
         $comments = "";
         $matched = false;
         foreach ($axis as $node) {
-            $text = trim($node->textContent) . "\n";
+            $text = trim($node->textContent);
 
             if (!$matched && str_starts_with($text, 'TRANSLATORS:')) {
                 $matched = true;
             }
 
-            if ($matched) {
+            if ($matched && !empty($text)) {
                 $comments .= $text . "\n";
             }
         }

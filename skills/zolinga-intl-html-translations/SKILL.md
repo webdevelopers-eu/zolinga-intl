@@ -84,11 +84,11 @@ The extractor uses the closest `gettext-context` attribute on the element or its
 
 You can add comments for translators using HTML comments starting with `TRANSLATORS:`. These comments are extracted and included in `.pot`/`.po` files to provide context and instructions.
 
-**Two supported positions:**
+**Three supported positions:**
 
 1. **Before the @gettext element** (traditional):
 ```html
-<!-- TRANSLATORS: This is a call-to-action button for the free trial signup -->
+<!-- TRANSLATORS: CTA button for free trial -->
 <button gettext=".">Start Your Free Trial</button>
 ```
 
@@ -103,11 +103,25 @@ You can add comments for translators using HTML comments starting with `TRANSLAT
 </div>
 ```
 
+3. **Inherited from ancestor elements** (new): Place before `<body>`, `<html>`, `<head>`, `<article>`, or `<section>` - inherited by all descendant translatables:
+```html
+<!-- TRANSLATORS: Legal disclaimer - applies to entire article -->
+<!-- TRANSLATORS: Do not translate trademark names -->
+<article>
+  <h1 gettext=".">Welcome</h1>
+  <p gettext=".">IPDefender® protection services.</p>
+</article>
+```
+
 **Rules:**
 - Must start with `TRANSLATORS:` (case-sensitive)
-- Can be placed before the element OR as first child(ren) inside the element (before any text/non-comment nodes)
+- Can be placed:
+  - Before the @gettext element
+  - As first child(ren) inside the @gettext element (before text/non-comment nodes)
+  - Before ancestor elements (body, html, head, article, section) - inherited by descendants
 - Must be standard HTML comments `<!-- ... -->`
 - Multiple comments are concatenated in the `.po` file
+- Extraction order: nested → preceding → inherited
 
 ## Nested Element Translation
 
