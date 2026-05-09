@@ -56,8 +56,7 @@ class Extractor extends GettextAbstract
         // Write minimal header for idempotency (xgettext --join-existing needs existing file)
         $this->initPotFile($potFile);
         $this->extractInBatches(FileTypes::PHP, $potFile, "--add-location -L PHP");
-        $this->splitContextInPotFile($potFile);
-        $this->fixEscapedSlashesInPotFile($potFile);
+        $this->fixPotfile($potFile);
     }
 
     /**
@@ -69,8 +68,7 @@ class Extractor extends GettextAbstract
         $this->ensureTemplatesDir();
         $this->initPotFile($potFile);
         $this->extractInBatches(FileTypes::JAVASCRIPT, $potFile, "--add-location -L JavaScript --keyword=__ --keyword=_n:1,2");
-        $this->splitContextInPotFile($potFile);
-        $this->fixEscapedSlashesInPotFile($potFile);
+        $this->fixPotfile($potFile);
     }
 
     /**
@@ -90,8 +88,14 @@ class Extractor extends GettextAbstract
         }
         $cmd = $this->getExtractCmd([$tmpFile], $potFile, '-L PHP --no-location');
         $this->exec("$cmd 2>&1", "Extracting gettext strings from HTML files...");
+        $this->fixPotfile($potFile);
+        unlink($tmpFile);
+    }
+
+    private function fixPotFile(string $potFile): void
+    {
         $this->splitContextInPotFile($potFile);
-        $this->fixEscapedSlashesInPotFile($potFile);
+        // $this->fixEscapedSlashesInPotFile($potFile);
     }
 
     /**
@@ -103,15 +107,15 @@ class Extractor extends GettextAbstract
      *
      * @param string $potFile Absolute path to the .pot file to process.
      */
-    private function fixEscapedSlashesInPotFile(string $potFile): void
-    {
-        $content = file_get_contents($potFile);
-        if ($content === false) {
-            return;
-        }
-        $content = str_replace('\\/', '/', $content);
-        file_put_contents($potFile, $content);
-    }
+    // private function fixEscapedSlashesInPotFile(string $potFile): void
+    // {
+    //     $content = file_get_contents($potFile);
+    //     if ($content === false) {
+    //         return;
+    //     }
+    //     $content = str_replace('\\/', '/', $content);
+    //     file_put_contents($potFile, $content);
+    // }
 
     /**
      * Issue: gettext does not treat "context\x04message" as a msgctxt + msgid pair
@@ -163,7 +167,9 @@ class Extractor extends GettextAbstract
                 $ctx = substr($assembled, 0, $sepPos);
                 $msg = substr($assembled, $sepPos + 1);
 
-                return 'msgctxt ' . json_encode($ctx) . "\nmsgid " . json_encode($msg) . "\n";
+                return 
+                    'msgctxt ' . json_encode($ctx) . "\n" . 
+                    'msgid ' . json_encode($msg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . "\n";
             },
             $content
         );
@@ -190,7 +196,7 @@ class Extractor extends GettextAbstract
         }
 
         $escaped = array_map('escapeshellarg', $potFiles);
-        $cmd = "msgcat --use-first " . implode(' ', $escaped) . " -o " . escapeshellarg($messagesPot);
+        $cmd = "msgcat -s --use-first " . implode(' ', $escaped) . " -o " . escapeshellarg($messagesPot);
         $this->exec("$cmd 2>&1", "Merging " . count($potFiles) . " .pot files into $messagesPot (msgcat)");
     }
 

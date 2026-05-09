@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Zolinga\Intl\Gettext;
 
 use Zolinga\Intl\Types\FileTypes;
+use Zolinga\System\Types\SeverityEnum;
+
 use const Zolinga\System\ROOT_DIR;
 
 /**
@@ -166,24 +168,25 @@ class GettextAbstract
         return false;
     }
 
-    protected function exec(string $cmd, string $message): string|null|false
+    protected function exec(string $cmd, string $message): bool
     {
         global $api;
 
         $cwd = getcwd() ?: throw new \RuntimeException("Cannot get current working directory");
         chdir(ROOT_DIR);
 
-        $api->log->info('i18n', "🛠️ " . substr($cmd, 0, 127) . (strlen($cmd) > 127 ? "..." : ""), ["cmd" => $cmd]);
-        $output = shell_exec($cmd);
+        $api->log->info('i18n', $message);
+        // $api->log->info('i18n', "🛠️ " . substr($cmd, 0, 127) . (strlen($cmd) > 127 ? "..." : ""), ["cmd" => $cmd]);
+        $api->log->info('i18n', "🛠️ $cmd");
 
-        if (is_string($output) || is_null($output)) {
-            $api->log->info('i18n', " ┃ $message");
-        } else {
-            $api->log->error('i18n', " ┃ $cmd output is " . json_encode($output));
+        exec("$cmd 2>&1", $outputLines, $returnCode);
+        $status = $returnCode === 0 ? SeverityEnum::INFO : SeverityEnum::ERROR;
+
+        foreach ($outputLines as $line) {
+            $api->log->log($status, 'i18n', " ┃ $line");
         }
-
         chdir($cwd);
 
-        return $output;
+        return $status === SeverityEnum::INFO;
     }
 }

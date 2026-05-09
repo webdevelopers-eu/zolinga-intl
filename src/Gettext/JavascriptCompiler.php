@@ -40,7 +40,7 @@ class JavascriptCompiler extends GettextAbstract
             }
 
             $tmpPo = tempnam(sys_get_temp_dir(), "{$this->domain->name}.$lang.client.") . '.po';
-            $output = $this->exec(
+            $this->exec(
                 "msgmerge --no-fuzzy-matching " . escapeshellarg($poFile) . " " . escapeshellarg($potFile) . " -o " . escapeshellarg($tmpPo) . " 2>&1",
                 "Merging $poFile with $potFile (msgmerge)"
             ) or throw new \RuntimeException("Cannot merge $poFile with $potFile");
