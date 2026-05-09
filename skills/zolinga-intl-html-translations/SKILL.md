@@ -6,6 +6,11 @@ argument-hint: "<module-name>"
 
 # HTML Static Translations
 
+## Rules When Asked To Make Content Translatable
+- When the translation could result in an ambiguous string, use `gettext-context` to disambiguate. Plase the string on an element with `gettext` or any ancestor element if it applies to multiple strings. Always try to place it as close to the `gettext` element as possible to avoid unnecessary context on otherwise unambiguous strings. 
+- Do not mark unnecessarily large portions of text as translatable strings - e.g. large paragraphs or entire pages. If you must, split them into smaller chunks by enclosing them in <void> elements (those are removed on output by zolinga-cms) and marking each chunk separately.
+- Do best effort and best judgment. If you are unsure, ask for clarification.
+
 ## Setup
 
 Add `<meta name="gettext" content="translate"/>` in `<head>`:

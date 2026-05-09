@@ -33,7 +33,8 @@ class FileTypes
             $globs[] = '*.php';
         }
         if ($fileTypes & self::JAVASCRIPT) {
-            $globs = array_merge($globs, ['*.js', '*.mjs']);
+            $globs[] = '*.js';
+            $globs[] = '*.mjs';
         }
         if ($fileTypes & self::HTML) {
             $globs[] = '*.html';
