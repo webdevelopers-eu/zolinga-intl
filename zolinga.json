@@ -66,8 +66,7 @@
     "config": {
         "intl": {
             "locales": [
-                "en_US",
-                "cs_CZ"
+                "en_US"
             ]
         },
         "ai": {

@@ -7,6 +7,8 @@ namespace Zolinga\Intl;
 use Zolinga\System\Events\{ServiceInterface, RequestResponseEvent};
 use Locale, NumberFormatter;
 
+use const Zolinga\System\IS_CLI;
+
 /**
  * Language and gettext service.
  * 
@@ -406,7 +408,9 @@ class LocaleService implements ServiceInterface
         $moPath = $path . "/$this->locale/LC_MESSAGES/$domain.mo";
         if (!is_file($moPath) || !is_readable($moPath)) {
             $zMoPath = $api->fs->toZolingaUri($moPath);
-            trigger_error("GETTEXT: The compiled dictionary file $zMoPath is missing or is not readable. Did you compile the dictionary?", E_USER_WARNING);
+            if (IS_CLI) {
+                trigger_error("GETTEXT: The compiled dictionary file $zMoPath is missing or is not readable. Did you compile the dictionary?", E_USER_WARNING);
+            }
             return false;
         }
 
