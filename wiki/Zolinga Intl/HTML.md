@@ -126,6 +126,16 @@ The comment must:
 
 Multiple comments can be used and will be concatenated in the `.po` file. This is useful for providing additional context, usage notes, or special instructions to translators.
 
+## Important Security Note
+
+**TRANSLATORS comments are automatically removed by zolinga-cms when serving pages to visitors.** This is intentional - these comments may contain sensitive information such as:
+- Internal instructions to translators
+- Context about marketing strategy
+- Legal disclaimers not meant for public display
+- Brand guidelines
+
+The comments are extracted during the gettext extraction phase (`bin/zolinga gettext:extract`) and included in `.pot`/`.po` files, but are stripped from the final HTML output before it's sent to the browser.
+
 ## Examples
 
 ```html
