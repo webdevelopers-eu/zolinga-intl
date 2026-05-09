@@ -13,6 +13,10 @@ argument-hint: "<translate|translateAsync> <fromLang> <toLang>"
 - Configuring or overriding the translator AI backend.
 - Customizing the translation prompt template.
 
+## Do Not Use When
+
+- When asked to translate .po files or localize modules without explicitly stating that Zolinga Translator service should be used. In this case, use the `zolinga-intl-multilingual-support` skill instead and edit the .po files directly.
+
 ## Workflow
 
 ### Synchronous Translation
