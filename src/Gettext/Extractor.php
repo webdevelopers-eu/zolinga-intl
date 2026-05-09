@@ -132,11 +132,7 @@ class Extractor extends GettextAbstract
      * Post-process a .pot file: find msgid values containing the \x04 context
      * separator and rewrite them as proper msgctxt + msgid pairs.
      *
-     * xgettext extracts "context\x04message" as a single msgid; this method
-     * converts those entries to the standard POT form:
-     *
-     *   msgctxt "context"
-     *   msgid "message"
+     * Uses GettextPoFile to parse and rewrite the file cleanly.
      *
      * @param string $potFile Absolute path to the .pot file to process.
      */
@@ -144,47 +140,11 @@ class Extractor extends GettextAbstract
     {
         global $api;
         $api->log->info('i18n', "Post-processing $potFile to split context and message (if needed)");
-        
-        $content = file_get_contents($potFile);
-        if ($content === false) {
-            return;
-        }
 
-        // Match a complete POT entry block. We look for msgid "..." lines where
-        // the assembled value contains the \x04 byte and rewrite them.
-        // POT msgid values may be split across multiple "..." continuation lines.
-        $changed = false;
-        $content = preg_replace_callback(
-            '/^(msgid\s+(?:"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"\s*)+)/m',
-            function (array $m) use (&$changed): string {
-                $block = $m[1];
+        $po = \Zolinga\Intl\GettextPoParser\GettextPoFile::load($potFile);
 
-                // Assemble the raw string value from all quoted segments.
-                $assembled = '';
-                preg_match_all('/"((?:[^"\\\\]|\\\\.)*)"/s', $block, $parts);
-                foreach ($parts[1] as $segment) {
-                    // Unescape xgettext C-style escapes to get the real bytes.
-                    $assembled .= stripcslashes($segment);
-                }
-
-                $sepPos = strpos($assembled, "\x04");
-                if ($sepPos === false) {
-                    return $block; // no context separator – leave untouched
-                }
-
-                $changed = true;
-                $ctx = substr($assembled, 0, $sepPos);
-                $msg = substr($assembled, $sepPos + 1);
-
-                return 
-                    'msgctxt ' . json_encode($ctx) . "\n" . 
-                    'msgid ' . json_encode($msg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . "\n";
-            },
-            $content
-        );
-
-        if ($changed) {
-            file_put_contents($potFile, $content);
+        if ($po->fixContext()) {
+            $po->save($potFile);
         }
     }
 

@@ -1,0 +1,169 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Zolinga\Intl\GettextPoParser;
+
+/**
+ * One translation entry in a gettext PO file.
+ */
+class GettextPoEntry
+{
+    private const JSON_FLAGS = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR;
+
+    /**
+     * @param array<string> $comments All comment lines preceding msgid
+     * @param string $msgid The untranslated source string
+     * @param string|null $msgidPlural Plural form, null if not plural
+     * @param array<string,string> $msgstr Translations: ["" => "singular"] or ["0" => "...", "1" => "..."]
+     * @param bool $fuzzy Whether "#, fuzzy" flag is set
+     * @param int|null $nplurals Expected plural form count (from Plural-Forms header)
+     */
+    public function __construct(
+        public array $comments = [],
+        public string $msgid = '',
+        public ?string $msgidPlural = null,
+        public private(set) array $msgstr = ['' => ''],
+        public bool $fuzzy = false,
+        public ?int $nplurals = null,
+    ) {}
+
+    /**
+     * Set translation(s) for this entry. Strips fuzzy flag.
+     *
+     * Singular: $entry->translate('Ahoj')
+     * Plural:   $entry->translate(['jablko', 'jablka', 'jablek'])
+     *           $entry->translate(['0' => 'jablko', '1' => 'jablka', '2' => 'jablek'])
+     *
+     * @throws \InvalidArgumentException if a string is given for a plural entry, or vice versa
+     */
+    public function translate(string|array $translation): void
+    {
+        if ($this->isPlural) {
+            if (!is_array($translation)) {
+                throw new \InvalidArgumentException(
+                    "Plural entry requires an array of translations, got string"
+                );
+            }
+            $normalized = [];
+            foreach ($translation as $k => $v) {
+                $normalized[(string) $k] = $v;
+            }
+            ksort($normalized, SORT_NUMERIC);
+            $this->msgstr = $normalized;
+        } else {
+            if (!is_string($translation)) {
+                throw new \InvalidArgumentException(
+                    "Singular entry requires a string translation, got array"
+                );
+            }
+            $this->msgstr = ['' => $translation];
+        }
+
+        $this->fuzzy = false;
+
+        // Strip "fuzzy" from #, comment
+        $this->comments = array_values(array_filter(
+            array_map(function ($c) {
+                if (!str_starts_with($c, '#,')) return $c;
+                $flags = array_filter(
+                    array_map('trim', explode(',', substr($c, 2))),
+                    fn($f) => $f !== 'fuzzy'
+                );
+                return $flags ? '#, ' . implode(', ', $flags) : null;
+            }, $this->comments)
+        ));
+    }
+
+    /** True when all msgstr forms are non-empty. */
+    public bool $isTranslated {
+        get {
+            if ($this->msgidPlural !== null) {
+                $count = $this->nplurals ?? count($this->msgstr);
+                for ($i = 0; $i < $count; $i++) {
+                    if (trim($this->msgstr[(string) $i] ?? '') === '') {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return trim($this->msgstr[''] ?? '') !== '';
+        }
+    }
+
+    /** True when entry has plural forms. */
+    public bool $isPlural {
+        get => $this->msgidPlural !== null;
+    }
+
+    /** msgctxt value extracted from pseudo-comment, null if none. */
+    public ?string $context {
+        get {
+            foreach ($this->comments as $c) {
+                if (str_starts_with($c, 'msgctxt ')) {
+                    return json_decode(substr($c, 8), flags: JSON_THROW_ON_ERROR);
+                }
+            }
+            return null;
+        }
+        set (?string $value) {
+            // Remove existing msgctxt pseudo-comment
+            $this->comments = array_values(array_filter(
+                $this->comments,
+                fn($c) => !str_starts_with($c, 'msgctxt ')
+            ));
+
+            if ($value !== null) {
+                $this->comments[] = 'msgctxt ' . json_encode($value, self::JSON_FLAGS);
+            }
+        }
+    }
+
+    /** Comments of type "#." (translator notes). @return array<string> */
+    public array $translatorComments {
+        get => array_values(array_filter($this->comments, fn($c) => str_starts_with($c, '#.')));
+    }
+
+    /** Comments of type "#:" (source references). @return array<string> */
+    public array $references {
+        get => array_values(array_filter($this->comments, fn($c) => str_starts_with($c, '#:')));
+    }
+
+    /** Comments of type "#," (flags). @return array<string> */
+    public array $flags {
+        get => array_values(array_filter($this->comments, fn($c) => str_starts_with($c, '#,')));
+    }
+
+    /** Render back to PO format. */
+    public function toPoString(): string
+    {
+        $out = [];
+
+        foreach ($this->comments as $c) {
+            if (str_starts_with($c, 'msgctxt ')) continue;
+            $out[] = $c;
+        }
+
+        if ($this->context !== null) {
+            $out[] = 'msgctxt ' . json_encode($this->context, self::JSON_FLAGS);
+        }
+
+        $out[] = 'msgid ' . json_encode($this->msgid, self::JSON_FLAGS);
+
+        if ($this->isPlural) {
+            $out[] = 'msgid_plural ' . json_encode($this->msgidPlural, self::JSON_FLAGS);
+            ksort($this->msgstr);
+            foreach ($this->msgstr as $i => $t) {
+                if ($i !== '') {
+                    $out[] = 'msgstr[' . $i . '] ' . json_encode($t, self::JSON_FLAGS);
+                }
+            }
+        } else {
+            $out[] = 'msgstr ' . json_encode($this->msgstr[''] ?? '', self::JSON_FLAGS);
+        }
+
+        return implode("\n", $out);
+    }
+}
+
+
