@@ -119,7 +119,7 @@ class Compiler extends GettextAbstract
     {
         global $api;
 
-        $files = $this->findFiles(FileTypes::HTML, self::EXCLUDE_FILES);
+        $files = $this->findFiles(FileTypes::HTML);
         foreach ($files as $file) {
             if (GettextDocument::getGettextMode($file) === 'translate') {
                 foreach ($this->domain->localesWithPO as $locale) {

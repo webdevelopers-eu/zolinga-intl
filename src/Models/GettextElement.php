@@ -20,9 +20,7 @@ class GettextElement extends DOMElement implements GettextNodeInterface
     public private(set) bool $isTranslated = false;
 
     public function ensureGettextHash(): bool
-    {
-        $hash = $this->gettextHash;
-        
+    {        
         if ($this->gettextHash) {
             return false; // hash already exists, no need to update
         }

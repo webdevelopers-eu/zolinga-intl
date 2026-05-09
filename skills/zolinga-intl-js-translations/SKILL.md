@@ -33,6 +33,25 @@ console.log(_n("One apple", "%s apples", 3, 3));
 3. If the locale is `en-US`, skips fetch (source strings are English).
 4. Initializes the gettext library with the fetched dictionary.
 
+## Translator Comments
+
+Add comments for translators by placing a JavaScript comment starting with `TRANSLATORS:` immediately before the gettext call. These comments are extracted and included in `.pot`/`.po` files:
+
+```javascript
+// TRANSLATORS: This is a call-to-action button label for the free trial signup
+console.log(gettext('Start Your Free Trial'));
+
+// TRANSLATORS: "Send" here refers to sending an email, not physical mail
+console.log(gettext("Email transmission\x04Send"));
+```
+
+The comment must:
+- Start with `TRANSLATORS:` (case-sensitive, singular form for PHP/JS)
+- Be placed immediately before the gettext call
+- Use standard JavaScript comment syntax (`//`)
+
+Multiple comments can be used and will be concatenated in the `.po` file.
+
 ## After Marking Strings
 
 Run `bin/zolinga gettext:extract --domains=my-module` to generate `.po` files, then translate and compile.

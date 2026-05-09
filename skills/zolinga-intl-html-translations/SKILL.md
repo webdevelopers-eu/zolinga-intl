@@ -80,6 +80,25 @@ Use `gettext-context` on an element or any ancestor to disambiguate identical st
 
 The extractor uses the closest `gettext-context` attribute on the element or its ancestors as the `msgctxt` in `.po` files.
 
+## Translator Comments
+
+You can add comments for translators using HTML comments starting with `TRANSLATORS:` immediately before an element with a `gettext` attribute. These comments are extracted and included in `.pot`/`.po` files to provide context and instructions:
+
+```html
+<!-- TRANSLATORS: This is a call-to-action button for the free trial signup -->
+<button gettext=".">Start Your Free Trial</button>
+
+<!-- TRANSLATORS: "sources" here refers to the list of citation sources, not water sources -->
+<a role="show-sources" gettext-context="citation toggle" gettext=".">sources</a>
+```
+
+The comment must:
+- Start with `TRANSLATORS:` (case-sensitive)
+- Be placed immediately before the element with the `gettext` attribute
+- Be in a standard HTML comment `<!-- ... -->`
+
+Multiple comments can be used and will be concatenated in the `.po` file.
+
 ## Nested Element Translation
 
 The `gettext="."` attribute works on elements containing **other elements** too. Child elements become numbered placeholders:
@@ -149,5 +168,16 @@ Run `bin/zolinga gettext:extract --domains=my-module,default` to generate `.po` 
 **Important**: `gettext:extract` modifies source HTML files in place — each keyword in every `gettext` attribute receives a `#`-prefixed 6-character hash suffix that uniquely identifies the element. For example, `gettext="."` becomes `gettext=".#a3f2b1"` and `gettext=". title"` becomes `gettext=".#d2bc00 title#1396ff"`. These hashes link source elements to their translations across files. Commit the updated source files after extraction.
 
 Note that all translations not in a module but in data folders like `data/` or `public/data` can be translated using the built-in `default` domain. Use `--domains=default` to extract and compile these translations.
+
+## Testing
+
+For testing the translation workflow without affecting production domains, use the `test` domain:
+
+```bash
+bin/zolinga gettext:extract --domains=test
+bin/zolinga gettext:compile --domains=test
+```
+
+The `test` domain scans files and creates output in `data/zolinga-intl/gettext-test/` folder. This is ideal for testing behavior and experimenting with the translation pipeline.
 
 See also: **zolinga-intl-multilingual-support** for the full pipeline.

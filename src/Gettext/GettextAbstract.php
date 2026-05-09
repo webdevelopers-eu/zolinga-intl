@@ -123,6 +123,10 @@ class GettextAbstract
      */
     protected function findFiles(int $fileTypes, array $exclude = self::EXCLUDE_FILES): array
     {
+        if ($this->domain->name !== 'test') { // Exclude test domain from translation in non-test domains
+            $exclude[] = '*/gettext-test/*';
+        }
+
         $globs = FileTypes::getGlobs($fileTypes);
         $files = [];
 

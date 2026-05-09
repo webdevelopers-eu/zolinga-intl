@@ -56,6 +56,25 @@ Use the `gettext-context` attribute on an element or any ancestor to disambiguat
 </div>
 ```
 
+# Translator Comments
+
+You can add comments for translators using HTML comments starting with `TRANSLATORS:` immediately before an element with a `gettext` attribute. These comments are extracted and included in `.pot`/`.po` files to provide context and instructions:
+
+```html
+<!-- TRANSLATORS: This is a call-to-action button for the free trial signup -->
+<button gettext=".">Start Your Free Trial</button>
+
+<!-- TRANSLATORS: "sources" here refers to the list of citation sources, not water sources -->
+<a role="show-sources" gettext-context="citation toggle" gettext=".">sources</a>
+```
+
+The comment must:
+- Start with `TRANSLATORS:` (case-sensitive)
+- Be placed immediately before the element with the `gettext` attribute
+- Be in a standard HTML comment `<!-- ... -->`
+
+Multiple comments can be used and will be concatenated in the `.po` file. This is useful for providing additional context, usage notes, or special instructions to translators.
+
 # Nested Element Translation
 
 The `gettext="."` attribute works on elements containing **other elements** too. Child elements become numbered placeholders in the `.po` file:
@@ -159,6 +178,17 @@ After extraction:
 **Important**: Since extraction modifies source files, commit the updated files after running `gettext:extract`. 
 
 _Warning_: If you modify the master HTML file, the cherry-picked HTML files will not be updated automatically. E.g. if you add CSS styles or images, they will not be added to the translated files. You will need to manually update the translated files. The `<meta name="gettext" content="replace"/>` is the best option for most cases as it regenerates the whole file and keeps it up to date with the master file.
+
+# Testing
+
+For testing the translation workflow without affecting production domains, use the `test` domain:
+
+```bash
+bin/zolinga gettext:extract --domains=test
+bin/zolinga gettext:compile --domains=test
+```
+
+The `test` domain scans files and creates output in `data/zolinga-intl/gettext-test/` folder. This is ideal for testing behavior and experimenting with the translation pipeline.
 
 # Web Components Support
 

@@ -62,6 +62,16 @@ class I18nService implements ServiceInterface
             folders: [$api->fs->toPath('private://'), $api->fs->toPath('public://')],
             fileTypes: FileTypes::ALL,
         );
+        $domains['default']->ensureDirectory();
+
+        $domains['test'] = new GettextDomain(
+            name: 'test',
+            serverOutput: $api->fs->toPath('private://zolinga-intl/gettext-test/locale/'),
+            clientJsonOutput: $api->fs->toPath('private://zolinga-intl/gettext-test/locale/'),
+            folders: [$api->fs->toPath('private://zolinga-intl/gettext-test/')],
+            fileTypes: FileTypes::ALL,
+        );
+        $domains['test']->ensureDirectory();
 
         $this->gettextDomains = $domains;
         return $this->gettextDomains;

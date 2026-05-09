@@ -66,6 +66,20 @@ class GettextDomain implements \Stringable
         return array_values($locales);
     }
 
+    /** Ensure the server output directory exists and is writable. */
+    public function ensureDirectory(): void
+    {
+        global $api;
+
+        if (!is_dir($this->serverOutput)) {
+            $api->log->info('i18n', "Creating gettext directory for domain {$this->name}: {$this->serverOutput}");
+            mkdir($this->serverOutput, 0777, true) or throw new \RuntimeException("Cannot create gettext directory: " . $this->serverOutput);
+        }
+        if (!is_dir($this->serverOutput) || !is_writable($this->serverOutput) || !is_readable($this->serverOutput)) {
+            throw new \RuntimeException("The gettext directory is not accessible: " . $this->serverOutput);
+        }
+    }
+
     public function __toString(): string
     {
         // 🈯 🈳 🈵

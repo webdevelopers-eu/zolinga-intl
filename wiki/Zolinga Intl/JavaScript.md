@@ -27,6 +27,25 @@ ngettext(string singular, string plural, int count, ..params): string
 
 Note, that you don't need to use `dgettext` or `dngettext` functions requiring the `domain` parameter as you do in PHP. The `gettext` and `ngettext` functions are initialized to use the `{MODULE}` domain already.
 
+## Translator Comments
+
+You can add comments for translators by placing a JavaScript comment starting with `TRANSLATORS:` immediately before the gettext call. These comments are extracted and included in `.pot`/`.po` files to provide context and instructions:
+
+```javascript
+// TRANSLATORS: This is a call-to-action button label for the free trial signup
+console.log(gettext('Start Your Free Trial'));
+
+// TRANSLATORS: "Send" here refers to sending an email
+console.log(gettext("Email transmission\x04Send"));
+```
+
+The comment must:
+- Start with `TRANSLATORS:` (case-sensitive, singular form for PHP/JS)
+- Be placed immediately before the gettext call
+- Use standard JavaScript comment syntax (`//`)
+
+Multiple comments can be used and will be concatenated in the `.po` file.
+
 # Preparing Dictionaries
 
 The standard workflow for preparing dictionaries is the same as for PHP. System will automatically prepare binary `.mo` files for PHP and `.json` dictionaries for JavaScript. You can use the `bin/zolinga gettext:extract --domains={DOMAINS}` command to extract all strings from the domain(s) and create a `{MODULE}/locale/{lang}_{TERRITORY}.po` file for each language. `--domains` accepts a comma-separated list of domains (for example `--domains=my-module,other-module`). These plain text files are intended to be translated by a human translator.

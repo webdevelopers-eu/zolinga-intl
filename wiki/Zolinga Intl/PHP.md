@@ -27,6 +27,25 @@ echo dgettext('my-module', "Welcome message\x04Hello, world!");
 
 The `dgettext` function will look for the translation of the string `Hello, world!` in the prepared dictionary for `my-module` domain and return the translated string. 
 
+## Translator Comments
+
+You can add comments for translators by placing a PHP comment starting with `TRANSLATORS:` immediately before the gettext call. These comments are extracted and included in `.pot`/`.po` files to provide context and instructions:
+
+```php
+// TRANSLATORS: This is a call-to-action button label for the free trial signup
+echo dgettext('my-module', 'Start Your Free Trial');
+
+// TRANSLATORS: "Send" here refers to sending an email
+echo dgettext('my-module', "Email transmission\x04Send");
+```
+
+The comment must:
+- Start with `TRANSLATORS:` (case-sensitive, singular form for PHP/JS)
+- Be placed immediately before the gettext call
+- Use standard PHP comment syntax (`//` or `#`)
+
+Multiple comments can be used and will be concatenated in the `.po` file. 
+
 ```php
 echo sprintf(dngettext('my-module', 'There is one apple', 'There are %d apples', 3), 3);
 ```

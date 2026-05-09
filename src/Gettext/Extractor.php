@@ -4,7 +4,13 @@ declare(strict_types=1);
 
 namespace Zolinga\Intl\Gettext;
 
+use DOMCdataSection;
+use DOMCharacterData;
+use DOMComment;
+use DOMText;
+use Zolinga\Intl\Models\GettextAttribute;
 use Zolinga\Intl\Models\GettextDocument;
+use Zolinga\Intl\Models\GettextElement;
 use Zolinga\Intl\Types\FileTypes;
 
 /**
@@ -24,8 +30,9 @@ class Extractor extends GettextAbstract
         $this->extractServerPotFile();
         $this->extractClientPotFile();
         $this->extractStaticPotFile();
-        $this->mergePotFiles();
-        $this->generateLanguagePoFiles();
+        if ($this->mergePotFiles()) {
+            $this->generateLanguagePoFiles();
+        }
     }
 
     private function generateLanguagePoFiles(): void
@@ -182,7 +189,7 @@ class Extractor extends GettextAbstract
     /**
      * Merge all three template .pot files into messages.pot via msgcat.
      */
-    private function mergePotFiles(): void
+    private function mergePotFiles(): bool
     {
         global $api;
 
@@ -192,12 +199,19 @@ class Extractor extends GettextAbstract
         $potFiles = glob("$templatesDir/*.pot") ?: [];
         if (!$potFiles) {
             $api->log->warning('i18n', "No .pot files to merge in $templatesDir");
-            return;
+            return false;
         }
 
         $escaped = array_map('escapeshellarg', $potFiles);
         $cmd = "msgcat -s --use-first " . implode(' ', $escaped) . " -o " . escapeshellarg($messagesPot);
         $this->exec("$cmd 2>&1", "Merging " . count($potFiles) . " .pot files into $messagesPot (msgcat)");
+
+        if (!file_exists($messagesPot)) {
+            $api->log->warning('i18n', "Failed to create merged .pot file or no translations found: $messagesPot");
+            return false;
+        }
+
+        return true;
     }
 
     private function ensureTemplatesDir(): void
@@ -256,11 +270,12 @@ class Extractor extends GettextAbstract
         $filesEsc = array_map(fn($file) => sprintf($fixCmd, $file), $filesEsc);
 
         $cmd = "xgettext " .
+            "--add-comments=TRANSLATORS " . // If preceded by comments starting "TRANSLATORS: ", include those
             "--verbose " .
             "--omit-header " .
             "--join-existing --from-code UTF-8 -F --package-version=\"1.0\" " .
             "-o " . escapeshellarg($potFile) . " " .
-            "--package-name=\"{$this->domain->name}\" " .
+            "--package-name=" . escapeshellarg($this->domain->name) . " " .
             ($extraParam ?? '') . " " .
             implode(" ", $filesEsc);
 
@@ -285,6 +300,7 @@ class Extractor extends GettextAbstract
         global $api;
 
         if (!in_array(GettextDocument::getGettextMode($file, ''), ['translate'])) {
+            $api->log->info('i18n', "Skipping $file because it does not have gettext mode 'translate'");
             return '';
         }
 
@@ -293,8 +309,7 @@ class Extractor extends GettextAbstract
         $changed = false;
 
         foreach ($doc->translatables as $id => $node) {
-            ["domain" => $domain, "keyword" => $keyword, "hash" => $hash] = GettextDocument::parseTranslatableKey($id);          
-            $strings[] = $this->makePhpLine($domain, $node->gettextString, $doc->filePath . " ($id)");
+            $strings[] = $this->makePhpLine($id, $node, $doc->filePath . " ($id)");
             $changed = $node->ensureGettextHash() || $changed;
         }
 
@@ -310,23 +325,44 @@ class Extractor extends GettextAbstract
 
     /**
      * Generate fake PHP gettext line for virtual file.
-     *
-     * @param string|null $domain
-     * @param string $string
-     * @param string $comment
-     * @return string
      */
-    private function makePhpLine(?string $domain, string $string, string $comment): string
+    private function makePhpLine(string $id, GettextElement|GettextAttribute $node, string $source): string
     {
-        // Normalize spaces:
-        $string = trim(preg_replace('/\s+/', ' ', $string));
-        $comment = trim(preg_replace('/\s+/', ' ', $comment));
-
+        $string = $node->gettextString;
         if ($string === '') {
             return '';
         }
 
-        $ret = "// " . addcslashes($comment, "\n\r\t") . "\n";
+        ["domain" => $domain, "keyword" => $keyword, "hash" => $hash] = GettextDocument::parseTranslatableKey($id);          
+
+        // Normalize spaces:
+        $string = trim(preg_replace('/\s+/', ' ', $string));
+        $source = trim(preg_replace('/\s+/', ' ', $source));
+
+        // Include preceding comments
+        $comments = "";
+        $element = $node instanceof GettextElement ? $node : $node->ownerElement;
+        while ($element) {
+            $element = $element->previousSibling;
+            if ($element instanceof DOMText || $element instanceof DOMCdataSection) {
+                if (trim($element->textContent) !== '') {
+                    break; // stop if we hit non-empty text content
+                }
+            } elseif ($element instanceof DOMComment) {
+                $comments .= trim($element->textContent) . "\n";
+            } else {
+                break; // stop if we hit a non-comment element
+            }
+        }
+
+        $comments = explode("\n", trim($comments));
+        $comments = array_filter(array_map(fn($c) => trim($c), $comments));
+        $comments = implode("\n// ", $comments);
+        $comments = $comments ? "// " . $comments . "\n" : "";
+
+        $ret = "// " . addcslashes($source, "\n\r\t") . "\n";
+        $ret .= $comments;        
+
         if ($domain) {
             $ret .= "dgettext(" . var_export($domain, true) . ", " . var_export($string, true) . ");\n";
         } else {

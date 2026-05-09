@@ -29,6 +29,25 @@ echo dgettext('my-module', "Confirm form submission\x04Send");
 echo dgettext('my-module', "Email transmission\x04Send");
 ```
 
+## Translator Comments
+
+Add comments for translators by placing a PHP comment starting with `TRANSLATORS:` immediately before the gettext call. These comments are extracted and included in `.pot`/`.po` files:
+
+```php
+// TRANSLATORS: This is a call-to-action button label for the free trial signup
+echo dgettext('my-module', 'Start Your Free Trial');
+
+// TRANSLATORS: "Send" here refers to sending an email
+echo dgettext('my-module', "Email transmission\x04Send");
+```
+
+The comment must:
+- Start with `TRANSLATORS:` (case-sensitive, singular form for PHP/JS)
+- Be placed immediately before the gettext call
+- Use standard PHP comment syntax (`//` or `#`)
+
+Multiple comments can be used and will be concatenated in the `.po` file.
+
 ## Static Analysis Rule
 
 **Never use variables inside translatable strings.** The extractor must find literal strings at parse time.
