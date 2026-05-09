@@ -9,8 +9,6 @@ namespace Zolinga\Intl\GettextPoParser;
  */
 class GettextPoEntry
 {
-    private const JSON_FLAGS = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR;
-
     /**
      * @param array<string> $comments All comment lines preceding msgid
      * @param string $msgid The untranslated source string
@@ -114,7 +112,7 @@ class GettextPoEntry
             ));
 
             if ($value !== null) {
-                $this->comments[] = 'msgctxt ' . json_encode($value, self::JSON_FLAGS);
+                $this->comments[] = 'msgctxt ' . GettextPoFile::poEncode($value);
             }
         }
     }
@@ -145,21 +143,21 @@ class GettextPoEntry
         }
 
         if ($this->context !== null) {
-            $out[] = 'msgctxt ' . json_encode($this->context, self::JSON_FLAGS);
+            $out[] = 'msgctxt ' . GettextPoFile::poEncode($this->context);
         }
 
-        $out[] = 'msgid ' . json_encode($this->msgid, self::JSON_FLAGS);
+        $out[] = 'msgid ' . GettextPoFile::poEncode($this->msgid);
 
         if ($this->isPlural) {
-            $out[] = 'msgid_plural ' . json_encode($this->msgidPlural, self::JSON_FLAGS);
+            $out[] = 'msgid_plural ' . GettextPoFile::poEncode($this->msgidPlural);
             ksort($this->msgstr);
             foreach ($this->msgstr as $i => $t) {
                 if ($i !== '') {
-                    $out[] = 'msgstr[' . $i . '] ' . json_encode($t, self::JSON_FLAGS);
+                    $out[] = 'msgstr[' . $i . '] ' . GettextPoFile::poEncode($t);
                 }
             }
         } else {
-            $out[] = 'msgstr ' . json_encode($this->msgstr[''] ?? '', self::JSON_FLAGS);
+            $out[] = 'msgstr ' . GettextPoFile::poEncode($this->msgstr[''] ?? '');
         }
 
         return implode("\n", $out);

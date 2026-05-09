@@ -143,14 +143,12 @@ class Extractor extends GettextAbstract
 
         $po = \Zolinga\Intl\GettextPoParser\GettextPoFile::load($potFile);
 
-        if ($po->fixContext()) {
-            $po->save($potFile);
-        }
+        $po->fixContext();
+        // Always save: the parse+save roundtrip normalizes escapes
+        // (e.g. literal BEL \x07 → \u0007) that msgcat would reject.
+        $po->save($potFile);
     }
 
-    /**
-     * Merge all three template .pot files into messages.pot via msgcat.
-     */
     private function mergePotFiles(): bool
     {
         global $api;

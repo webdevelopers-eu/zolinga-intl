@@ -34,6 +34,59 @@ class GettextPoFile
 {
     private const JSON_FLAGS = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR;
 
+    /**
+     * Encode a string for PO output.
+     *
+     * Converts JSON unicode escapes (\uXXXX) for control chars to PO hex
+     * escapes (\xNN), and \f to \x0c (msgcat rejects \f).
+     */
+    public static function poEncode(string $s): string
+    {
+        $json = json_encode($s, self::JSON_FLAGS);
+        return preg_replace_callback(
+            '/\\\\u([0-9a-fA-F]{4})|\\\\f/',
+            function ($m) {
+                if ($m[0] === '\\f') {
+                    return '\\x0c';
+                }
+                $cp = hexdec($m[1]);
+                return $cp < 0x20 ? sprintf('\\x%02x', $cp) : $m[0];
+            },
+            $json
+        );
+    }
+
+    /**
+     * Decode a PO quoted string fragment.
+     *
+     * Converts PO \xNN hex escapes and C escapes (\a, \v, \0, \f) to
+     * JSON-compatible \uNNNN, then decodes via json_decode.
+     */
+    public static function poDecode(string $escaped): string
+    {
+        // \$ is not a valid JSON escape but appears in some PO files
+        $escaped = str_replace('\\$', '$', $escaped);
+        // Convert PO \xNN hex escapes to JSON \uNNNN
+        $escaped = preg_replace_callback(
+            '/\\\\x([0-9a-fA-F]{2})/',
+            fn($m) => sprintf('\\u%04x', hexdec($m[1])),
+            $escaped
+        );
+        // Convert C escapes not valid in JSON
+        $escaped = str_replace(
+            ['\\a', '\\v', '\\0', '\\f'],
+            ['\\u0007', '\\u000b', '\\u0000', '\\u000c'],
+            $escaped
+        );
+        // Escape literal control characters (0x00-0x1F) that json_decode rejects
+        $escaped = preg_replace_callback(
+            '/[\x00-\x1F]/',
+            fn($m) => sprintf('\\u%04x', ord($m[0])),
+            $escaped
+        );
+        return json_decode('"' . $escaped . '"', flags: JSON_THROW_ON_ERROR);
+    }
+
     /** Ordered translation entries. */
     public private(set) array $entries = [];
 
@@ -329,36 +382,15 @@ class GettextPoFile
         $s = '';
         // First line: keyword "..."  → decode the quoted part
         if (preg_match('/"(.*)"\s*$/', $lines[$i], $m)) {
-            $s = $this->jsonDecodePo($m[1]);
+            $s = self::poDecode($m[1]);
         }
         $i++;
         // Continuation lines: "..."
         while ($i < count($lines) && preg_match('/^"(.*)"\s*$/', $lines[$i], $m)) {
-            $s .= $this->jsonDecodePo($m[1]);
+            $s .= self::poDecode($m[1]);
             $i++;
         }
         return $s;
-    }
-
-    /**
-     * Decode a PO quoted string fragment via json_decode.
-     *
-     * PO uses C-style escapes compatible with JSON except for \$ which
-     * some tools emit for literal $ — normalize it before decoding.
-     */
-    private function jsonDecodePo(string $escaped): string
-    {
-        // \$ is not a valid JSON escape but appears in some PO files
-        $escaped = str_replace('\\$', '$', $escaped);
-        // Escape control characters (0x00-0x1F) that json_decode rejects.
-        // PO files may contain literal control chars like \x04 (EOT) from
-        // gettext context separators.
-        $escaped = preg_replace_callback(
-            '/[\x00-\x1F]/',
-            fn($m) => sprintf('\\u%04x', ord($m[0])),
-            $escaped
-        );
-        return json_decode('"' . $escaped . '"', flags: JSON_THROW_ON_ERROR);
     }
 }
 
