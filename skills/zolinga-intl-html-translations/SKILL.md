@@ -82,22 +82,32 @@ The extractor uses the closest `gettext-context` attribute on the element or its
 
 ## Translator Comments
 
-You can add comments for translators using HTML comments starting with `TRANSLATORS:` immediately before an element with a `gettext` attribute. These comments are extracted and included in `.pot`/`.po` files to provide context and instructions:
+You can add comments for translators using HTML comments starting with `TRANSLATORS:`. These comments are extracted and included in `.pot`/`.po` files to provide context and instructions.
 
+**Two supported positions:**
+
+1. **Before the @gettext element** (traditional):
 ```html
 <!-- TRANSLATORS: This is a call-to-action button for the free trial signup -->
 <button gettext=".">Start Your Free Trial</button>
-
-<!-- TRANSLATORS: "sources" here refers to the list of citation sources, not water sources -->
-<a role="show-sources" gettext-context="citation toggle" gettext=".">sources</a>
 ```
 
-The comment must:
-- Start with `TRANSLATORS:` (case-sensitive)
-- Be placed immediately before the element with the `gettext` attribute
-- Be in a standard HTML comment `<!-- ... -->`
+2. **Nested inside @gettext element** (new): Place as first child(ren) before any text or elements:
+```html
+<span gettext="."><!-- TRANSLATORS: Main headline -->Welcome to IPDefender</span>
 
-Multiple comments can be used and will be concatenated in the `.po` file.
+<div gettext=".">
+  <!-- TRANSLATORS: Keep the trademark symbol ® -->
+  <!-- TRANSLATORS: This is a registered trademark -->
+  IPDefender® Protection
+</div>
+```
+
+**Rules:**
+- Must start with `TRANSLATORS:` (case-sensitive)
+- Can be placed before the element OR as first child(ren) inside the element (before any text/non-comment nodes)
+- Must be standard HTML comments `<!-- ... -->`
+- Multiple comments are concatenated in the `.po` file
 
 ## Nested Element Translation
 

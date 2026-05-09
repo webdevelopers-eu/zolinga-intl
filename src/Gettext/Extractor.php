@@ -7,6 +7,8 @@ namespace Zolinga\Intl\Gettext;
 use DOMCdataSection;
 use DOMCharacterData;
 use DOMComment;
+use DOMElement;
+use DOMNodeList;
 use DOMText;
 use Zolinga\Intl\Models\GettextAttribute;
 use Zolinga\Intl\Models\GettextDocument;
@@ -309,7 +311,7 @@ class Extractor extends GettextAbstract
         $changed = false;
 
         foreach ($doc->translatables as $id => $node) {
-            $strings[] = $this->makePhpLine($id, $node, $doc->filePath . " ($id)");
+            $strings[] = $this->makePhpLine($id, $node, "<$doc->filePath>" . " ($id)");
             $changed = $node->ensureGettextHash() || $changed;
         }
 
@@ -338,30 +340,22 @@ class Extractor extends GettextAbstract
         // Normalize spaces:
         $string = trim(preg_replace('/\s+/', ' ', $string));
         $source = trim(preg_replace('/\s+/', ' ', $source));
+        $comments = '';
 
-        // Include preceding comments
-        $comments = "";
         $element = $node instanceof GettextElement ? $node : $node->ownerElement;
-        while ($element) {
-            $element = $element->previousSibling;
-            if ($element instanceof DOMText || $element instanceof DOMCdataSection) {
-                if (trim($element->textContent) !== '') {
-                    break; // stop if we hit non-empty text content
-                }
-            } elseif ($element instanceof DOMComment) {
-                $comments .= trim($element->textContent) . "\n";
-            } else {
-                break; // stop if we hit a non-comment element
-            }
-        }
+        /** @disregard */
+        $xpath = $element->ownerDocument->xpath;
 
-        $comments = explode("\n", trim($comments));
-        $comments = array_filter(array_map(fn($c) => trim($c), $comments));
-        $comments = implode("\n// ", $comments);
-        $comments = $comments ? "// " . $comments . "\n" : "";
+        // Nested comments
+        $axis = $this->sliceToFirstStopper(iterator_to_array($element->childNodes));
+        $comments .= $this->extractComments($axis) ?? '';
 
-        $ret = "// " . addcslashes($source, "\n\r\t") . "\n";
-        $ret .= $comments;        
+        // Preceeding comments
+        $axis = iterator_to_array($xpath->query('preceding-sibling::node()', $element));
+        $axis = array_reverse($this->sliceToFirstStopper(array_reverse($axis)));
+        $comments .= $this->extractComments($axis) ?? '';
+
+        $ret = "$comments// " . ($comments ? '' : 'TRANSLATORS: ') . "SOURCE: " . $node->getNodePath() . " " . addcslashes($source, "\n\r\t") . "\n";
 
         if ($domain) {
             $ret .= "dgettext(" . var_export($domain, true) . ", " . var_export($string, true) . ");\n";
@@ -370,5 +364,47 @@ class Extractor extends GettextAbstract
         }
 
         return $ret;
+    }
+
+    private function sliceToFirstStopper(array $nodes): array
+    {
+        $ret = [];
+        foreach ($nodes as $node) {
+            if (($node instanceof DOMText || $node instanceof DOMCdataSection) && trim($node->textContent) !== '') {
+                break; // stop if we hit non-empty text content
+            } elseif ($node instanceof DOMElement) {
+                break; // stop if we hit a non-comment element
+            }
+            $ret[] = $node;
+        }
+        return $ret;
+    }
+
+    /** 
+     * @param array $axis
+     * @return string|null
+     */
+    private function extractComments(array $axis): ?string
+    {
+        // Include preceding comments
+        $comments = "";
+        $matched = false;
+        foreach ($axis as $node) {
+            $text = trim($node->textContent) . "\n";
+
+            if (!$matched && str_starts_with($text, 'TRANSLATORS:')) {
+                $matched = true;
+            }
+
+            if ($matched) {
+                $comments .= $text . "\n";
+            }
+        }
+
+        $comments = explode("\n", trim($comments));
+        $comments = array_filter(array_map(fn($c) => trim($c), $comments));
+        $comments = implode("\n// ", $comments);
+        $comments = $comments ? "// " . $comments . "\n" : "";
+        return $comments ?: null;
     }
 }

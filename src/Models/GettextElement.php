@@ -44,7 +44,7 @@ class GettextElement extends DOMElement implements GettextNodeInterface
             if ($child instanceof GettextElement) {
                 $idx++;
                 $string .= "<$idx>" . $this->getGettextString($idx, $child) . "</$idx>";
-            } else {
+            } elseif ($child instanceof \DOMText || $child instanceof \DOMCdataSection) {
                 $string .= $child->textContent;
             }
         }

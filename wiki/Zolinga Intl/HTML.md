@@ -58,7 +58,13 @@ Use the `gettext-context` attribute on an element or any ancestor to disambiguat
 
 # Translator Comments
 
-You can add comments for translators using HTML comments starting with `TRANSLATORS:` immediately before an element with a `gettext` attribute. These comments are extracted and included in `.pot`/`.po` files to provide context and instructions:
+You can add comments for translators using HTML comments starting with `TRANSLATORS:`. These comments are extracted and included in `.pot`/`.po` files to provide context and instructions.
+
+## Two Supported Positions
+
+### 1. Before the @gettext Element (Traditional)
+
+Place comments immediately before an element with a `gettext` attribute:
 
 ```html
 <!-- TRANSLATORS: This is a call-to-action button for the free trial signup -->
@@ -68,12 +74,60 @@ You can add comments for translators using HTML comments starting with `TRANSLAT
 <a role="show-sources" gettext-context="citation toggle" gettext=".">sources</a>
 ```
 
+### 2. Nested Inside @gettext Element (New)
+
+Place comments as the **first child** inside the @gettext element, before any text or other elements:
+
+```html
+<span gettext=".">
+  <!-- TRANSLATORS: This is the main headline for the hero section -->
+  Welcome to IPDefender
+</span>
+
+<div gettext=".">
+  <!-- TRANSLATORS: Keep the trademark symbol ® in the translation -->
+  <!-- TRANSLATORS: This is a registered trademark in EU and US -->
+  IPDefender® Protection
+</div>
+```
+
+## Comment Rules
+
 The comment must:
 - Start with `TRANSLATORS:` (case-sensitive)
-- Be placed immediately before the element with the `gettext` attribute
+- Be placed either:
+  - Immediately before the element with the `gettext` attribute, OR
+  - As the first child(ren) inside the element with the `gettext` attribute (before any text or non-comment nodes)
 - Be in a standard HTML comment `<!-- ... -->`
 
 Multiple comments can be used and will be concatenated in the `.po` file. This is useful for providing additional context, usage notes, or special instructions to translators.
+
+## Examples
+
+```html
+<!-- Single comment before element -->
+<!-- TRANSLATORS: This appears in the navigation menu -->
+<a gettext=".">Home</a>
+
+<!-- Multiple comments before element -->
+<!-- TRANSLATORS: This is a legal disclaimer -->
+<!-- TRANSLATORS: Do not translate the trademark name -->
+<p gettext=".">IPDefender® is a registered trademark.</p>
+
+<!-- Single comment nested inside element -->
+<h1 gettext="."><!-- TRANSLATORS: Main page heading -->Welcome</h1>
+
+<!-- Multiple comments nested inside element -->
+<p gettext=".">
+  <!-- TRANSLATORS: This is the introduction paragraph -->
+  <!-- TRANSLATORS: Keep the tone professional but friendly -->
+  Welcome to our service.
+</p>
+
+<!-- Mixed: comments before and inside (both will be extracted) -->
+<!-- TRANSLATORS: This is important -->
+<span gettext="."><!-- TRANSLATORS: Also this -->Important text</span>
+```
 
 # Nested Element Translation
 
