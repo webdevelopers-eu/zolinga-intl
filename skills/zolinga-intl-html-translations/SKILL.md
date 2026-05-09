@@ -7,8 +7,20 @@ argument-hint: "<module-name>"
 # HTML Static Translations
 
 ## Rules When Asked To Make Content Translatable
-- When the translation could result in an ambiguous string, use `gettext-context` to disambiguate. Plase the string on an element with `gettext` or any ancestor element if it applies to multiple strings. Always try to place it as close to the `gettext` element as possible to avoid unnecessary context on otherwise unambiguous strings. 
-- Do not mark unnecessarily large portions of text as translatable strings - e.g. large paragraphs or entire pages. If you must, split them into smaller chunks by enclosing them in <void> elements (those are removed on output by zolinga-cms) and marking each chunk separately.
+- When the translation could result in an ambiguous string, use `gettext-context` to disambiguate. Place the context attribute on an element with `gettext` or any ancestor element if it applies to multiple strings. Always try to place it as close to the `gettext` element as possible to avoid unnecessary context on otherwise unambiguous strings.
+- Do not mark unnecessarily large portions of text as translatable strings - e.g. large paragraphs or entire pages. If you must, split them into smaller chunks by enclosing them in `<void>` elements (those are removed on output by zolinga-cms) and marking each chunk separately.
+- **Always mark ALL translatable content** - including citations, quotes, attribution names, source links, and legal references. Never skip citations or quotes assuming they don't need translation. We strive for COMPLETE translations.
+- Use `gettext-context` for short or ambiguous strings that could have different translations depending on context. Examples: "Sign Up" (registration step vs newsletter), "Monitor" (verb vs noun), "sources" (citation toggle vs water sources), CTA buttons like "Start Your Free Trial" vs "Try Risk-Free".
+- Use `<void gettext=".">` to split long paragraphs into smaller, independently translatable sentences. This gives translators manageable chunks and allows reusing translations across pages.
+- **Keep connected sentences as a single translatable unit.** When a sentence contains inline elements like links, wrap the entire sentence in `<void gettext=".">` (or a single parent with `gettext="."`), not each inline element separately. Splitting a sentence into disconnected parts breaks translation context and produces poor results. Example:
+  ```html
+  <!-- WRONG: two disconnected parts of one sentence -->
+  <span gettext=".">Please download the PDF to view it:</span>
+  <a href="file.pdf" gettext=".">Download PDF</a>
+
+  <!-- CORRECT: one translatable unit with nested link as placeholder -->
+  <void gettext=".">Please download the PDF to view it: <a href="file.pdf">Download PDF</a></void>
+  ```
 - Do best effort and best judgment. If you are unsure, ask for clarification.
 
 ## Setup
@@ -101,6 +113,34 @@ The `<meta name="gettext" content="..."/>` in the **generated** file controls be
 | (no meta) | File is ignored by compiler — fully manual maintenance. |
 
 **Warning**: Cherry-pick mode does NOT sync structural changes (CSS, images, new elements) from the source file — only translatable strings are updated. Use `replace` mode if you want structural changes reflected in the translated file.
+
+## Splitting Long Paragraphs with `<void>`
+
+Use `<void>` elements to break long paragraphs into smaller translatable chunks. The `<void>` tags are removed on output, so the rendered HTML is identical:
+
+```html
+<p>
+    <void gettext=".">If a dispute goes to court, judges rely on this evidence to confirm your ownership.</void>
+    <void gettext=".">Without proper documentation, it becomes much harder to prove your rights.</void>
+    <void gettext=".">This requirement is based on trademark laws that grant protection only when the brand owner actively defends their mark.</void>
+</p>
+```
+
+This gives translators manageable sentences instead of one huge block, and allows reusing translations across pages.
+
+## Marking Citations and Quotes
+
+Always mark citations, quotes, and attribution text as translatable. Legal citations and source text need translation just like any other content:
+
+```html
+<cite itemprop="name" gettext=".">
+    Federal Trade Commission: Corrected Trial Brief, 2021
+</cite>
+<quote cite="https://example.com" gettext=".">
+    Therefore, once acquired, trademark rights may be lost or weakened...
+</quote>
+<a role="show-sources" gettext-context="citation toggle" gettext=".">sources</a>
+```
 
 ## After Marking Strings
 
