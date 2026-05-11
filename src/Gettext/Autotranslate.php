@@ -53,26 +53,32 @@ class Autotranslate extends GettextAbstract
             $api->log->info('i18n', "{$this->domain}/{$locale}: Translating " . count($untranslated) . " untranslated entries");
 
             foreach ($untranslated as $entry) {
-                try {
-                    $context = $entry->isPlural ? "Translate all $po->nplurals plural forms determined by this formula: form number = $po->plural" : '';
-                    $translated = $api->translator->translate(
-                        string: $entry->toPoString(),
-                        fromLang: 'en_US',
-                        toLang: $locale,
-                        context: $context,
-                        template: GettextTemplateEnum::GETTEXT_ENTRY,
-                    );
+                $context = $entry->isPlural ? "Translate all $po->nplurals plural forms determined by this formula: form number = $po->plural" : '';
+                $retries = 3;
+                do {
+                    try {
+                        $translated = $api->translator->translate(
+                            string: $entry->toPoString(),
+                            fromLang: 'en_US',
+                            toLang: $locale,
+                            context: $context,
+                            template: GettextTemplateEnum::GETTEXT_ENTRY,
+                        );
 
-                    $translatedEntry = $po->parseToEntry($translated);
-                    foreach($entry->msgstr as $index => $str) {
-                        if (empty(trim($translatedEntry->msgstr[$index] ?? ''))) {
-                            throw new \Exception("Translation API returned empty string for plural form index $index: $translatedEntry");
+                        $translatedEntry = $po->parseToEntry($translated);
+                        foreach($entry->msgstr as $index => $str) {
+                            if (empty(trim($translatedEntry->msgstr[$index] ?? ''))) {
+                                throw new \Exception("Translation API returned empty string for plural form index $index: $translatedEntry");
+                            }
                         }
+                        $entry->translate($translatedEntry->msgstr);
+                        $po->save($autoPath);
+                    } catch (\Throwable $e) {
+                        $api->log->error('i18n', "{$this->domain}/{$locale}: Failed to translate entry '{$entry->msgid}': $entry . Error: " . $e->getMessage());
                     }
-                    $entry->translate($translatedEntry->msgstr);
-                    $po->save($autoPath);
-                } catch (\Throwable $e) {
-                    $api->log->error('i18n', "{$this->domain}/{$locale}: Failed to translate entry '{$entry->msgid}': $entry . Error: " . $e->getMessage());
+                } while ($retries-- > 0 && !$entry->isTranslated);
+                if (!$entry->isTranslated) {
+                    $api->log->error('i18n', "{$this->domain}/{$locale}: Failed to translate entry '{$entry->msgid}' after multiple attempts, skipping.");
                 }
             }
 

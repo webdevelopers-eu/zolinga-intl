@@ -5,6 +5,12 @@ All notable changes to the Zolinga Intl module.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3] — 2026-05-11
+
+### Added
+- `bin/zolinga gettext:autotranslate` CLI command for AI-powered translation of untranslated `.po` entries. See [Gettext Autotranslate](:ref:event/gettext/autotranslate).
+- Resume support: interrupted autotranslate sessions pick up from `.po.autotranslate` progress files.
+
 ## [2.0] — 2026-05-08
 ### Added
 - `$api->i18n` service for gettext domain discovery via `getGettextDomains()`.

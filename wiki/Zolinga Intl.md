@@ -47,6 +47,7 @@ The translation workflow consists of the following steps
   - **Note**: This command modifies source HTML files in place by adding `#HASH` suffixes to `gettext` attributes. These hashes uniquely identify each translatable element and link source elements to their translations across files. Commit the updated source files after extraction.
 - **Translating the strings**
   - You need to translate untranslated strings in the `{MODULE}/locale/*.po` files. You can use any text editor or a specialized translation tool like [Poedit](https://poedit.net/).
+  - Alternatively, use the AI autotranslate command: `bin/zolinga gettext:autotranslate --domains={DOMAINS}`. This sends untranslated entries to the AI translator and fills them in automatically. See [Gettext Autotranslate](:ref:event/gettext/autotranslate) for details.
 - **Compiling the translations**
   - You need to compile the translations to generate the `.mo` files for PHP, `.json` dictionaries for Javascript or `.{lang}_{TERRITORY}.html` static translations for HTML. The compilation is done by the `bin/zolinga gettext:compile --domains={DOMAINS}` command. `--domains` accepts a comma-separated list of domains.
 
