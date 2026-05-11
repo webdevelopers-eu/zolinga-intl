@@ -100,7 +100,7 @@ class Autotranslate extends GettextAbstract
         }
 
         // Match all special placeholders <...> and %\w+ and ${...} and {{...}} and $\w+ and ensure they are present in the translation
-        preg_match_all('/(?<placeholders><[^>]+>|%\w+|\${[^}]+}|{{[^}]+}}|\$\w+)/', $original, $matches);
+        preg_match_all('/(?<placeholders><[^>]+>|%\w+|\${[^}]+}|{{[^}]+}}|\$[a-zA-Z]{3,})/', $original, $matches);
         $placeholders = $matches['placeholders'] ?? [];
         foreach ($placeholders as $ph) {
             if (strpos($translated, $ph) === false) {
