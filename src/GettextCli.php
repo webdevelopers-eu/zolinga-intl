@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Zolinga\Intl;
 
 use Zolinga\System\Events\{ListenerInterface, RequestResponseEvent};
-use Zolinga\Intl\Gettext\{Extractor, Compiler, JavascriptCompiler};
+use Zolinga\Intl\Gettext\{Extractor, Compiler, JavascriptCompiler, Autotranslate};
 use const Zolinga\System\ROOT_DIR;
 
 /**
@@ -17,13 +17,25 @@ use const Zolinga\System\ROOT_DIR;
 class GettextCli implements ListenerInterface
 {
 
-    private function getGettextDomains(?string $filter): array {
+    /**
+     * Get filtered gettext domains from CLI event parameters.
+     *
+     * Honors --domains (comma-separated list) and --all (process all domains).
+     * Without either, all domains are processed.
+     *
+     * @param RequestResponseEvent $event
+     * @return array<string, GettextDomain> Keyed by domain name.
+     */
+    private function getFilteredDomains(RequestResponseEvent $event): array
+    {
         global $api;
 
         $domains = $api->i18n->getGettextDomains();
+        $filter = $event->request['domains'] ?? null;
+        $all = (bool) ($event->request['all'] ?? false);
         $filterList = $filter ? array_map('trim', explode(',', $filter)) : [];
 
-        if ($filterList) {
+        if ($filterList && !$all) {
             $domains = array_filter($domains, fn($o) => in_array($o->name, $filterList, true));
         }
 
@@ -45,7 +57,7 @@ class GettextCli implements ListenerInterface
 
         $api->log->info('i18n', "▶️  Extracting gettext strings...");
 
-        $domains = $this->getGettextDomains($event->request['domains'] ?? null);
+        $domains = $this->getFilteredDomains($event);
 
         if (empty($domains)) {
             $api->log->warning('i18n', "No gettext domains found to extract. Check --domains parameter.");
@@ -74,7 +86,7 @@ class GettextCli implements ListenerInterface
     {
         global $api;
 
-        $domains = $this->getGettextDomains($event->request['domains'] ?? null);
+        $domains = $this->getFilteredDomains($event);
 
         if (empty($domains)) {
             $api->log->warning('i18n', "No gettext domains found to compile. Check --domains parameter.");
@@ -93,5 +105,37 @@ class GettextCli implements ListenerInterface
         }
 
         $event->setStatus($event::STATUS_OK, 'Compiled gettext strings');
+    }
+
+    /**
+     * Autotranslate untranslated gettext entries using AI.
+     *
+     * The request parameter 'domains' can be used to specify one or more gettext
+     * domains to process (comma-separated). Otherwise all domains are processed.
+     *
+     * @param RequestResponseEvent $event
+     * @return void
+     */
+    public function autotranslate(RequestResponseEvent $event): void
+    {
+        global $api;
+
+        $api->log->info('i18n', "▶️  Autotranslating gettext strings...");
+
+        $domains = $this->getFilteredDomains($event);
+
+        if (empty($domains)) {
+            $api->log->warning('i18n', "No gettext domains found to autotranslate. Check --domains parameter.");
+            $event->setStatus($event::STATUS_NOT_FOUND, 'No gettext domains to autotranslate');
+            return;
+        }
+
+        foreach ($domains as $domain) {
+            /** @var \Zolinga\Intl\Gettext\GettextDomain $domain */
+            $autotranslate = new Autotranslate($domain);
+            $autotranslate->autotranslate();
+        }
+
+        $event->setStatus($event::STATUS_OK, 'Autotranslated gettext strings');
     }
 }

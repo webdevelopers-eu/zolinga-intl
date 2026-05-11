@@ -34,6 +34,61 @@ class GettextPoFile
 {
     private const JSON_FLAGS = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR;
 
+    /** Ordered translation entries. */
+    public private(set) array $entries = [];
+
+    /** Header fields (Project-Id-Version, Language, Plural-Forms, ...). */
+    public private(set) array $header = [];
+
+    public ?string $lang {
+        get => $this->locale ? \Locale::getPrimaryLanguage($this->locale) : null;
+    }
+
+    /**
+     * Locale code e.g. "en_US" or "cs_CZ"
+     */
+    public ?string $locale {
+        get {
+            global $api;
+            if (empty($this->header['Language'])) {
+                return null;
+            }
+            $locale = trim(\Locale::getPrimaryLanguage($this->header['Language']) . '_' . \Locale::getRegion($this->header['Language']), '_');
+            if (strlen($locale) === 2) {
+                $locale = array_find($api->config['intl']['locales'], fn($l) => str_starts_with($l, $locale . '_'));
+                if (!$locale) {
+                    throw new \RuntimeException("Locale '{$this->header['Language']}' from PO header is not supported");
+                }
+                return \Locale::canonicalize($locale); 
+            }
+            return $locale;
+        }
+    }
+
+    /** Number of plural forms from Plural-Forms header, null if unknown. */
+    public private(set) ?int $nplurals = null;
+
+    /** Plural expression from Plural-Forms header, null if unknown. Example: "(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2" */
+    public private(set) ?string $plural = null;
+
+    /**
+     * Examples of n values for each plural form, generated from the plural expression. Max 3 examples per form. 
+     * 
+     * Example: [0 => 1, 1 => 0, 2 => 5]
+     * Eg. for given language plural form 0 is used when n=1, form 1 is used when n=0 , and form 2 is used when n=5.
+     */
+    public private(set) ?array $pluralCountExamples {
+        get {
+            if (!$this->pluralCountExamples) {
+                $this->pluralCountExamples = $this->generatePluralCountExamples();
+            }
+            return $this->pluralCountExamples;
+        }
+    }
+
+    public function __construct()
+    {
+    }
     /**
      * Encode a string for PO output.
      *
@@ -86,18 +141,7 @@ class GettextPoFile
         );
         return json_decode('"' . $escaped . '"', flags: JSON_THROW_ON_ERROR);
     }
-
-    /** Ordered translation entries. */
-    public private(set) array $entries = [];
-
-    /** Header fields (Project-Id-Version, Language, Plural-Forms, ...). */
-    public private(set) array $header = [];
-
-    /** Number of plural forms from Plural-Forms header, null if unknown. */
-    public private(set) ?int $nplurals = null;
-
-    // -- public API --
-
+    
     public static function load(string $path): self
     {
         $content = file_get_contents($path);
@@ -114,7 +158,7 @@ class GettextPoFile
     {
         return array_values(array_filter(
             $this->entries,
-            fn($e) => !$e->isTranslated
+            fn($e) => $e->msgid !== '' && !$e->isTranslated
         ));
     }
 
@@ -143,7 +187,7 @@ class GettextPoFile
             }
         }
 
-        throw new \RuntimeException("Failed to parse entry string: no non-header entry found");
+        throw new \RuntimeException("Failed to parse entry string: no non-header entry found: " . json_encode($entryString));
     }
 
     /**
@@ -277,35 +321,100 @@ class GettextPoFile
         $this->entries = [];
         $this->header = [];
         $this->nplurals = null;
+        $this->plural = null;
+        $this->pluralCountExamples = null;
 
         $i = 0;
         $n = count($lines);
-
-        // Skip leading blanks
-        while ($i < $n && trim($lines[$i]) === '') $i++;
-
-        // Header: msgid "" followed by msgstr "" with continuation lines
-        if ($i < $n && $lines[$i] === 'msgid ""') {
-            $i++; // skip msgid ""
-            $raw = $this->readString($lines, $i);
-            if (preg_match_all('/^([^:]+):\s*(.*)$/m', $raw, $hm, PREG_SET_ORDER)) {
-                foreach ($hm as $h) {
-                    $this->header[trim($h[1])] = trim($h[2]);
-                }
-            }
-            if (isset($this->header['Plural-Forms']) &&
-                preg_match('/nplurals=(\d+);/', $this->header['Plural-Forms'], $pm)) {
-                $this->nplurals = (int) $pm[1];
-            }
-            while ($i < $n && trim($lines[$i]) === '') $i++;
-        }
 
         // Entries
         while ($i < $n) {
             if (trim($lines[$i]) === '') { $i++; continue; }
             $entry = $this->parseEntry($lines, $i);
-            if ($entry) $this->entries[] = $entry;
+  
+            if ($entry instanceof GettextPoEntry) {
+                if ($entry->msgid === '') {
+                    $this->parseHeaderEntry($entry);
+                }
+                $this->entries[] = $entry;
+            }
         }
+    }
+
+    private function parseHeaderEntry(GettextPoEntry $entry): void 
+    {
+        if (preg_match_all('/^([^:]+):\s*(.*)$/m', $entry->msgstr[''], $hm, PREG_SET_ORDER)) {
+            foreach ($hm as $h) {
+                $this->header[trim($h[1])] = trim($h[2]);
+            }
+        }
+        if (isset($this->header['Plural-Forms'])) {
+            $this->parsePluralForms($this->header['Plural-Forms']);
+        }
+    }
+
+    /**
+     * Parse the Plural-Forms header and set properties like $this->nplurals. 
+     * Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;"
+     */
+    private function parsePluralForms(string $pluralForms): void
+    {
+        global $api;
+        foreach (explode(';', trim($pluralForms, "\r\n ;")) as $part) {
+            $part = trim($part);
+            list($key, $value) = explode('=', $part, 2) + [null, null];
+            $key = trim($key ?? '');
+            $value = trim($value ?? '');
+
+            switch (trim($key)) {
+                case 'nplurals':
+                    $this->nplurals = (int) trim($value);
+                    break;
+                case 'plural':
+                    $this->plural = $value;
+                    break;
+                default:
+                    $api->log->info("i18n", "Unknown Plural-Forms part: " . json_encode($part));
+            }
+        }
+    } 
+
+    /**
+     * Generate examples of plural counts based on the Plural-Forms header.
+     * 
+     * For each plural form, finds up to 3 example n values that trigger that form according to the plural expression.
+     * 
+     * Returns an array mapping plural form index to example n values, e.g. [0 => 1, 1 => 0, 2 => 5].
+     * Eg. for given language plural form 0 is used when n=1, form 1 is used when n=0 , and form 2 is used when n=5.
+     *  
+     * @return array|null
+     */
+    private function generatePluralCountExamples(): ?array
+    {
+        if (!$this->nplurals || !$this->plural) {
+            return null;
+        }
+
+        $examples = array_fill(0, $this->nplurals, []);
+        $remaining = range(0, $this->nplurals - 1);
+
+        $formula = preg_replace('/[^n0-9><=!&|?:()]+/', '', $this->plural);
+        // That is ugly, but still the simplest
+        $cmdTemplate = sprintf('env -i /bin/sh -c "echo $(( %s ))"', trim(escapeshellarg(str_replace('n', '%n', $formula)), "'\""));
+
+        for ($n = 0; $n < 200; $n++) {
+            $cmd = str_replace('%n', strval($n), $cmdTemplate);
+            $form = intval(shell_exec($cmd));
+            if (in_array($form, $remaining)) {
+                $examples[$form] = $n;
+                $remaining = array_diff($remaining, [$form]);
+                if (empty($remaining)) {
+                        break;
+                }
+            }
+        }
+
+        return $examples;
     }
 
     /**

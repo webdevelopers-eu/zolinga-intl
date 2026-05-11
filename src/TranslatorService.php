@@ -7,6 +7,7 @@ namespace Zolinga\Intl;
 use Locale;
 use Zolinga\AI\Events\AiEvent;
 use Zolinga\Intl\Events\TranslateEvent;
+use Zolinga\Intl\Types\GettextTemplateEnum;
 use Zolinga\System\Events\ListenerInterface;
 use Zolinga\System\Events\RequestResponseEvent;
 use Zolinga\System\Events\ServiceInterface;
@@ -39,10 +40,11 @@ class TranslatorService implements ServiceInterface, ListenerInterface
         string $toLang,
         ?string $context = null,
         string $ai = 'translator',
+        GettextTemplateEnum $template = GettextTemplateEnum::DEFAULT
     ): ?string {
         global $api;
 
-        $prompt = $this->buildPrompt($string, $fromLang, $toLang, $context);
+        $prompt = $this->buildPrompt($string, $fromLang, $toLang, $context, $template);
         $result = $api->ai->prompt($ai, $prompt);
 
         return is_string($result) ? (trim($result) ?: null) : null;
@@ -67,7 +69,8 @@ class TranslatorService implements ServiceInterface, ListenerInterface
             $event->request['string'],
             $event->request['fromLang'],
             $event->request['toLang'],
-            $event->request['context'] ?? null,
+            $event->request['context'] ?? '',
+            $event->request['template'] ?? GettextTemplateEnum::DEFAULT,
         );
 
         $aiEvent = new AiEvent(
@@ -124,15 +127,15 @@ class TranslatorService implements ServiceInterface, ListenerInterface
         string $string,
         string $fromLang,
         string $toLang,
-        ?string $context,
+        ?string $context = '',
+        GettextTemplateEnum $template = GettextTemplateEnum::DEFAULT
     ): string {
         global $api;
 
-        $templatePath = 'config://zolinga-intl/translate-prompt.txt';
-        $template = is_file($templatePath)
-            ? file_get_contents($templatePath)
-            : file_get_contents('module://zolinga-intl/data/translate-prompt.txt');
-
+        $templatePath = 'module://zolinga-intl/data/prompt-translate-' . $template->value . '.txt';
+        $template = file_get_contents($templatePath)
+            or throw new \RuntimeException("Failed to load translation prompt template: $templatePath");
+            
         $sourceLang = Locale::getDisplayLanguage($fromLang, $fromLang) ?: $fromLang;
         $sourceCode = Locale::getPrimaryLanguage($fromLang) ?: $fromLang;
         $targetLang = Locale::getDisplayLanguage($toLang, $toLang) ?: $toLang;

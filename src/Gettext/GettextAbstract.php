@@ -18,8 +18,6 @@ use const Zolinga\System\ROOT_DIR;
 class GettextAbstract
 {
 
-
-
     /**
      * The list of files to exclude from the gettext operations.
      * 

@@ -6,6 +6,7 @@ namespace Zolinga\Intl\Events;
 
 use ArrayAccess;
 use ArrayObject;
+use Zolinga\Intl\Types\GettextTemplateEnum;
 use Zolinga\System\Events\RequestResponseEvent;
 use Zolinga\System\Types\OriginEnum;
 
@@ -65,6 +66,7 @@ class TranslateEvent extends RequestResponseEvent
         'fromLang' => 'en_US',
         'context' => null,
         'priority' => 0.5,
+        'template' => GettextTemplateEnum::DEFAULT,
     ];
 
     private const REQUEST_REQUIRED = [
@@ -91,11 +93,11 @@ class TranslateEvent extends RequestResponseEvent
     ) {
         $this->uuid = $uuid;
         $request = array_merge(self::REQUEST_DEFAULTS, (array) $request);
-        $this->validateRequest($request);
+        $request = $this->validateRequest($request);
         parent::__construct($type, $origin, $request, $response);
     }
 
-    private function validateRequest(array $request): void
+    private function validateRequest(array $request): array
     {
         if (!is_float($request['priority'] ?? null) || $request['priority'] < 0 || $request['priority'] >= 1) {
             throw new \InvalidArgumentException("Parameter 'priority' must be a float between 0 (inclusive) and 1 (exclusive).");
@@ -108,6 +110,10 @@ class TranslateEvent extends RequestResponseEvent
                 );
             }
         }
+
+        $request['template'] = GettextTemplateEnum::from($request['template']);
+        
+        return $request;
     }
 
     public static function fromArray(array $data): static

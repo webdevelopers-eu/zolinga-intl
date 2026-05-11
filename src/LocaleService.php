@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Zolinga\Intl;
 
-use Zolinga\System\Events\{ServiceInterface, RequestResponseEvent};
+use Zolinga\System\Events\{ServiceInterface};
 use Locale, NumberFormatter;
 
 use const Zolinga\System\IS_CLI;
@@ -264,6 +264,7 @@ class LocaleService implements ServiceInterface
 
         // Heuristics - we leave just the last comma or dot, as those are for sure the decimal separators
         $string = preg_replace('/\.(?=.*,)|,(?=.*\.)/', '', $string, count: $count);
+        /** @disregard */
         if ($count) { // last separator is different then previous => must be decimal separator
             $string = preg_replace('/[.,]/', $decimalSeparator, $string, 1);
         } elseif (strlen(preg_replace('/[^.,]/', '', $string)) > 1) { // there are at least 2 same separators => it is for sure thousands separator 

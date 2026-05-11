@@ -7,7 +7,7 @@ namespace Zolinga\Intl\GettextPoParser;
 /**
  * One translation entry in a gettext PO file.
  */
-class GettextPoEntry
+class GettextPoEntry implements \Stringable
 {
     /**
      * @param array<string> $comments All comment lines preceding msgid
@@ -30,6 +30,7 @@ class GettextPoEntry
      * Set translation(s) for this entry. Strips fuzzy flag.
      *
      * Singular: $entry->translate('Ahoj')
+     *           $entry->translate(['Ahoj'])
      * Plural:   $entry->translate(['jablko', 'jablka', 'jablek'])
      *           $entry->translate(['0' => 'jablko', '1' => 'jablka', '2' => 'jablek'])
      *
@@ -50,9 +51,12 @@ class GettextPoEntry
             ksort($normalized, SORT_NUMERIC);
             $this->msgstr = $normalized;
         } else {
+            if (is_array($translation) && count($translation) === 1) {
+                $translation = reset($translation);
+            }
             if (!is_string($translation)) {
                 throw new \InvalidArgumentException(
-                    "Singular entry requires a string translation, got array"
+                    "Singular entry requires a string translation, got " . json_encode($translation)
                 );
             }
             $this->msgstr = ['' => $translation];
@@ -161,6 +165,11 @@ class GettextPoEntry
         }
 
         return implode("\n", $out);
+    }
+
+    public function __toString(): string
+    {
+        return $this->toPoString();
     }
 }
 
