@@ -53,7 +53,13 @@ class Autotranslate extends GettextAbstract
             $api->log->info('i18n', "{$this->domain}/{$locale}: Translating " . count($untranslated) . " untranslated entries");
 
             foreach ($untranslated as $entry) {
-                $context = $entry->isPlural ? "Translate all $po->nplurals plural forms determined by this formula: form number = $po->plural" : '';
+                if ($entry->isPlural) {
+                    $context = "Translate all $po->nplurals plural forms determined by this formula: form number = $po->plural . ";
+                    $context.= "`msgstr[0]` is a singular translation of ". GettextPoFile::poEncode($entry->msgid) . " ";
+                    $context.= "and " . implode(', ', array_map(fn($n) => "`msgstr[$n]`", range(1, $po->nplurals - 1))) . " are various plural form translations of " . GettextPoFile::poEncode($entry->msgidPlural);
+                } else {
+                    $context = "";
+                }
                 $retries = 3;
                 do {
                     try {
@@ -67,9 +73,10 @@ class Autotranslate extends GettextAbstract
 
                         $translatedEntry = $po->parseToEntry($translated);
                         foreach($entry->msgstr as $index => $str) {
-                            if (empty(trim($translatedEntry->msgstr[$index] ?? ''))) {
-                                throw new \Exception("Translation API returned empty string for plural form index $index: $translatedEntry");
-                            }
+                            $this->validateTranslationOrThrow(
+                                !$index ? $entry->msgid : $entry->msgidPlural, 
+                                $translatedEntry->msgstr[$index] ?? ''
+                            );
                         }
                         $entry->translate($translatedEntry->msgstr);
                         $po->save($autoPath);
@@ -83,6 +90,22 @@ class Autotranslate extends GettextAbstract
             }
 
             $this->mergeBack($poPath, $autoPath);
+        }
+    }
+
+    private function validateTranslationOrThrow(string $original, string $translated): void
+    {
+        if (empty(trim($translated))) {
+            throw new \Exception("Translation API returned empty string for original: $original");
+        }
+
+        // Match all special placeholders <...> and %\w+ and ${...} and {{...}} and $\w+ and ensure they are present in the translation
+        preg_match_all('/(?<placeholders><[^>]+>|%\w+|\${[^}]+}|{{[^}]+}}|\$\w+)/', $original, $matches);
+        $placeholders = $matches['placeholders'] ?? [];
+        foreach ($placeholders as $ph) {
+            if (strpos($translated, $ph) === false) {
+                throw new \Exception("Translation is missing placeholder '$ph' from original: $original. Translated text: $translated");
+            }
         }
     }
 
