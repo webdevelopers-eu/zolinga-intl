@@ -61,22 +61,28 @@ class Autotranslate extends GettextAbstract
                     $context = "";
                 }
                 $retries = 3;
+                $instructions = '';
                 do {
                     try {
                         $translated = $api->translator->translate(
                             string: $entry->toPoString(),
                             fromLang: 'en_US',
                             toLang: $locale,
-                            context: $context,
+                            context: trim($context . " " . $instructions),
                             template: GettextTemplateEnum::GETTEXT_ENTRY,
                         );
 
                         $translatedEntry = $po->parseToEntry($translated);
                         foreach($entry->msgstr as $index => $str) {
-                            $this->validateTranslationOrThrow(
+                            $instructions = $this->getFixInstructions(
+                                "msgstr" . ($entry->isPlural ? "[$index]" : ""),
                                 !$index ? $entry->msgid : $entry->msgidPlural, 
-                                $translatedEntry->msgstr[$index] ?? ''
+                                $translatedEntry->msgstr[$index] ?? '',
+                                $instructions
                             );
+                        }
+                        if ($instructions) {
+                            throw new \Exception("Translation for entry '{$entry->msgid}' is missing required placeholders. Instructions for translator: $instructions");
                         }
                         $entry->translate($translatedEntry->msgstr);
                         $po->save($autoPath);
@@ -93,20 +99,24 @@ class Autotranslate extends GettextAbstract
         }
     }
 
-    private function validateTranslationOrThrow(string $original, string $translated): void
+    private function getFixInstructions(string $keyword, string $original, string $translated, string $previousInstructions): string
     {
+        $instructions = [];
+
         if (empty(trim($translated))) {
-            throw new \Exception("Translation API returned empty string for original: $original");
+            $instructions[] = "Translate all including $keyword!";
         }
 
         // Match all special placeholders <...> and %\w+ and ${...} and {{...}} and $\w+ and ensure they are present in the translation
-        preg_match_all('/(?<placeholders><[^>]+>|%\w+|\${[^}]+}|{{[^}]+}}|\$[a-zA-Z]{3,})/', $original, $matches);
+        preg_match_all('/(?<placeholders></?[0-9a-zA-Z][^>]*>|%\w+|\${[^}]+}|{{[^}]+}}|\$[a-zA-Z][a-zA-Z0-9]{2,})/', $original, $matches);
         $placeholders = $matches['placeholders'] ?? [];
         foreach ($placeholders as $ph) {
             if (strpos($translated, $ph) === false) {
-                throw new \Exception("Translation is missing placeholder '$ph' from original: $original. Translated text: $translated");
+                $instructions[] = "Make sure to include the placeholder '$ph' in the translation, as it is required for correct functionality.";
             }
         }
+
+        return $instructions ? $previousInstructions . ' ' . implode(' ', $instructions) : '';
     }
 
     /**
