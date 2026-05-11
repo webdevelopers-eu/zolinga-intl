@@ -161,7 +161,7 @@ class Autotranslate extends GettextAbstract
         $instructions = [];
 
         if (empty(trim($translated))) {
-            $instructions[] = "Translate all including $keyword!";
+            $instructions[] = "Translate all including `$keyword`!";
         }
 
         // Match sprintf() format specifiers and other placeholders that must be preserved
@@ -179,7 +179,7 @@ class Autotranslate extends GettextAbstract
         $placeholders = $matches['placeholders'] ?? [];
         foreach ($placeholders as $ph) {
             if (strpos($translated, $ph) === false) {
-                $instructions[] = "Make sure to include the placeholder '$ph' in the $keyword.";
+                $instructions[] = "Make sure to include the placeholder '$ph' in the `$keyword`.";
             }
         }
 
