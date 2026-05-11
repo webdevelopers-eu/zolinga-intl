@@ -107,7 +107,7 @@ class Autotranslate extends GettextAbstract
 
                 if (!empty($newInstructions)) {
                     $instructions = array_unique(array_merge($instructions, $newInstructions));
-                    throw new \Exception("Translation for entry '{$entry->msgid}' is missing required placeholders. Instructions: " . implode('; ', $instructions));
+                    throw new \Exception("Original: \n$entry \nTranslation: \n$translated \nFix instructions: " . implode(' ', $newInstructions));
                 }
 
                 $entry->translate($translatedEntry->msgstr);
