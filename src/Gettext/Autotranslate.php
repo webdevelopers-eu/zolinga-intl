@@ -61,27 +61,29 @@ class Autotranslate extends GettextAbstract
                     $context = "";
                 }
                 $retries = 3;
-                $instructions = '';
+                $newInstructions = [];
                 do {
                     try {
                         $translated = $api->translator->translate(
                             string: $entry->toPoString(),
                             fromLang: 'en_US',
                             toLang: $locale,
-                            context: trim($context . " " . $instructions),
+                            context: trim($context . rtrim("\n - " . implode("\n - ", $newInstructions), "\n -")),
                             template: GettextTemplateEnum::GETTEXT_ENTRY,
                         );
 
                         $translatedEntry = $po->parseToEntry($translated);
+                        $oldInstructions = $newInstructions;
+                        $newInstructions = [];
                         foreach($entry->msgstr as $index => $str) {
-                            $instructions = $this->getFixInstructions(
+                            $newInstructions = array_unique(array_merge($newInstructions, $this->getFixInstructions(
                                 "msgstr" . ($entry->isPlural ? "[$index]" : ""),
                                 !$index ? $entry->msgid : $entry->msgidPlural, 
                                 $translatedEntry->msgstr[$index] ?? '',
-                                $instructions
-                            );
+                            )));
                         }
-                        if ($instructions) {
+                        if (!empty($newInstructions)) {
+                            $newInstructions = array_unique(array_merge($oldInstructions, $newInstructions));
                             throw new \Exception("Translation for entry '{$entry->msgid}' is missing required placeholders. Instructions for translator: $instructions");
                         }
                         $entry->translate($translatedEntry->msgstr);
@@ -99,7 +101,7 @@ class Autotranslate extends GettextAbstract
         }
     }
 
-    private function getFixInstructions(string $keyword, string $original, string $translated, string $previousInstructions): string
+    private function getFixInstructions(string $keyword, string $original, string $translated): array
     {
         $instructions = [];
 
@@ -107,16 +109,26 @@ class Autotranslate extends GettextAbstract
             $instructions[] = "Translate all including $keyword!";
         }
 
-        // Match all special placeholders <...> and %\w+ and ${...} and {{...}} and $\w+ and ensure they are present in the translation
-        preg_match_all('/(?<placeholders><\/?[0-9a-zA-Z][^>]*>|%\w+|\${[^}]+}|{{[^}]+}}|\$[a-zA-Z][a-zA-Z0-9]{2,})/', $original, $matches);
+        // Match sprintf() format specifiers and other placeholders that must be preserved
+        preg_match_all(
+            '/(?<placeholders>'
+                . '<\/?[0-9a-zA-Z][^>]*>'  // HTML/XML tags like <1>, </b>, <div>
+                . '|%(?:%|(?:\d+\$)?[+\-]?(?:[0 ]|\'.)?-?\d*(?:\.\d+)?[bcdeEfFgGosuxX])'  // sprintf: %d, %1$s, %.2f, %%, etc.
+                . '|\${[^}]+}'              // ${var} template variables
+                . '|{{[^}]+}}'              // {{var}} template variables
+                . '|\$[a-zA-Z0-9]*'         // $varName
+                . ')/',
+            $original,
+            $matches
+        );
         $placeholders = $matches['placeholders'] ?? [];
         foreach ($placeholders as $ph) {
             if (strpos($translated, $ph) === false) {
-                $instructions[] = "Make sure to include the placeholder '$ph' in the translation, as it is required for correct functionality.";
+                $instructions[] = "Make sure to include the placeholder '$ph' in the $keyword.";
             }
         }
 
-        return $instructions ? $previousInstructions . ' ' . implode(' ', $instructions) : '';
+        return $instructions; 
     }
 
     /**
