@@ -27,81 +27,136 @@ class Autotranslate extends GettextAbstract
      */
     public function autotranslate(): void
     {
-        global $api;
-
         foreach ($this->locales as $locale) {
             if ($locale === 'en_US') {
                 continue;
             }
-
-            $poPath = $this->domain->serverOutput . "/{$locale}.po";
-            $autoPath = $poPath . '.autotranslate';
-
-            // Determine source file
-            if (file_exists($autoPath)) {
-                $api->log->info('i18n', "{$this->domain}: Picking up from previous autotranslate session: $autoPath");
-                $sourcePath = $autoPath;
-            } elseif (file_exists($poPath)) {
-                $sourcePath = $poPath;
-            } else {
-                $api->log->warning('i18n', "{$this->domain}: No PO file found for locale $locale, skipping");
-                continue;
-            }
-
-            $po = GettextPoFile::load($sourcePath);
-            $untranslated = $po->getUntranslatedEntries();
-            $api->log->info('i18n', "{$this->domain}/{$locale}: Translating " . count($untranslated) . " untranslated entries");
-
-            foreach ($untranslated as $entry) {
-                if ($entry->isPlural) {
-                    $context = "Translate all $po->nplurals plural forms determined by this formula: form number = $po->plural . ";
-                    $context.= "`msgstr[0]` is a singular translation of ". GettextPoFile::poEncode($entry->msgid) . " ";
-                    $context.= "and " . implode(', ', array_map(fn($n) => "`msgstr[$n]`", range(1, $po->nplurals - 1))) . " are various plural form translations of " . GettextPoFile::poEncode($entry->msgidPlural);
-                } else {
-                    $context = "";
-                }
-                $retries = 3;
-                $newInstructions = [];
-                do {
-                    try {
-                        $translated = $api->translator->translate(
-                            string: $entry->toPoString(),
-                            fromLang: 'en_US',
-                            toLang: $locale,
-                            context: trim($context . rtrim("\n - " . implode("\n - ", $newInstructions), "\n -")),
-                            template: GettextTemplateEnum::GETTEXT_ENTRY,
-                        );
-
-                        $translatedEntry = $po->parseToEntry($translated);
-                        $oldInstructions = $newInstructions;
-                        $newInstructions = [];
-                        foreach($entry->msgstr as $index => $str) {
-                            $newInstructions = array_unique(array_merge($newInstructions, $this->getFixInstructions(
-                                "msgstr" . ($entry->isPlural ? "[$index]" : ""),
-                                !$index ? $entry->msgid : $entry->msgidPlural, 
-                                $translatedEntry->msgstr[$index] ?? '',
-                            )));
-                        }
-                        if (!empty($newInstructions)) {
-                            $newInstructions = array_unique(array_merge($oldInstructions, $newInstructions));
-                            throw new \Exception("Translation for entry '{$entry->msgid}' is missing required placeholders. Instructions for translator: $instructions");
-                        }
-                        $entry->translate($translatedEntry->msgstr);
-                        $po->save($autoPath);
-                    } catch (\Throwable $e) {
-                        $api->log->error('i18n', "{$this->domain}/{$locale}: Failed to translate entry '{$entry->msgid}': $entry . Error: " . $e->getMessage());
-                    }
-                } while ($retries-- > 0 && !$entry->isTranslated);
-                if (!$entry->isTranslated) {
-                    $api->log->error('i18n', "{$this->domain}/{$locale}: Failed to translate entry '{$entry->msgid}' after multiple attempts, skipping.");
-                }
-            }
-
-            $this->mergeBack($poPath, $autoPath);
+            $this->autotranslateLocale($locale);
         }
     }
 
-    private function getFixInstructions(string $keyword, string $original, string $translated): array
+    /**
+     * Autotranslate all untranslated entries for a single locale.
+     */
+    private function autotranslateLocale(string $locale): void
+    {
+        global $api;
+
+        $poPath = $this->domain->serverOutput . "/{$locale}.po";
+        $autoPath = $poPath . '.autotranslate';
+
+        $sourcePath = $this->resolveSourcePath($poPath, $autoPath);
+        if ($sourcePath === null) {
+            $api->log->warning('i18n', "{$this->domain}: No PO file found for locale $locale, skipping");
+            return;
+        }
+
+        $po = GettextPoFile::load($sourcePath);
+        $untranslated = $po->getUntranslatedEntries();
+        $api->log->info('i18n', "{$this->domain}/{$locale}: Translating " . count($untranslated) . " untranslated entries");
+
+        foreach ($untranslated as $entry) {
+            $this->autotranslateEntry($po, $entry, $locale, $autoPath);
+        }
+
+        $this->mergeBack($poPath, $autoPath);
+    }
+
+    /**
+     * Resolve which PO file to use as source.
+     *
+     * Prefers .autotranslate (resume), then .po, returns null if neither exists.
+     */
+    private function resolveSourcePath(string $poPath, string $autoPath): ?string
+    {
+        global $api;
+
+        if (file_exists($autoPath)) {
+            $api->log->info('i18n', "{$this->domain}: Picking up from previous autotranslate session: $autoPath");
+            return $autoPath;
+        }
+        if (file_exists($poPath)) {
+            return $poPath;
+        }
+        return null;
+    }
+
+    /**
+     * Translate a single PO entry with retry logic.
+     */
+    private function autotranslateEntry(GettextPoFile $po, object $entry, string $locale, string $autoPath): void
+    {
+        global $api;
+
+        $context = $entry->isPlural ? $this->buildPluralContext($po, $entry) : '';
+        $retries = 3;
+        $instructions = [];
+
+        do {
+            try {
+                $translated = $api->translator->translate(
+                    string: $entry->toPoString(),
+                    fromLang: 'en_US',
+                    toLang: $locale,
+                    context: trim($context . rtrim("\n - " . implode("\n - ", $instructions), "\n -")),
+                    template: GettextTemplateEnum::GETTEXT_ENTRY,
+                );
+
+                $translatedEntry = $po->parseToEntry($translated);
+                $newInstructions = $this->collectInstruct($entry, $translatedEntry);
+
+                if (!empty($newInstructions)) {
+                    $instructions = array_unique(array_merge($instructions, $newInstructions));
+                    throw new \Exception("Translation for entry '{$entry->msgid}' is missing required placeholders. Instructions: " . implode('; ', $instructions));
+                }
+
+                $entry->translate($translatedEntry->msgstr);
+                $po->save($autoPath);
+                return;
+            } catch (\Throwable $e) {
+                $api->log->error('i18n', "{$this->domain}/{$locale}: Failed to translate entry '{$entry->msgid}': " . $e->getMessage());
+            }
+        } while ($retries-- > 0 && !$entry->isTranslated);
+
+        if (!$entry->isTranslated) {
+            $api->log->error('i18n', "{$this->domain}/{$locale}: Failed to translate entry '{$entry->msgid}' after multiple attempts, skipping.");
+        }
+    }
+
+    /**
+     * Build context string for plural entries.
+     */
+    private function buildPluralContext(GettextPoFile $po, object $entry): string
+    {
+        $context = "Translate all $po->nplurals plural forms determined by this formula: $po->plural. ";
+        $context .= "`msgstr[0]` is a singular translation of " . GettextPoFile::poEncode($entry->msgid) . " ";
+        $context .= "and " . implode(', ', array_map(fn($n) => "`msgstr[$n]`", range(1, ($po->nplurals ?? 2) - 1)))
+            . " are various plural form translations of " . GettextPoFile::poEncode($entry->msgidPlural);
+        return $context;
+    }
+
+    /**
+     * Collect fix instructions for all msgstr indices of a translated entry.
+     *
+     * @return array<string> Empty if translation is valid.
+     */
+    private function collectInstruct(object $entry, object $translatedEntry): array
+    {
+        $instructions = [];
+
+        foreach ($entry->msgstr as $index => $str) {
+            $keyword = "msgstr" . ($entry->isPlural ? "[$index]" : "");
+            $original = $index === '' || $index === '0' ? $entry->msgid : $entry->msgidPlural;
+            $instructions = array_unique(array_merge(
+                $instructions,
+                $this->getInstrucForSingle($keyword, $original, $translatedEntry->msgstr[$index] ?? '')
+            ));
+        }
+
+        return $instructions;
+    }
+
+    private function getInstrucForSingle(string $keyword, string $original, string $translated): array
     {
         $instructions = [];
 
