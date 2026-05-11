@@ -112,9 +112,8 @@ class Autotranslate extends GettextAbstract
     /**
      * Merge the .autotranslate file back into the original .po file.
      *
-     * Uses msgmerge --compendium so that existing translations in the
-     * original .po file take precedence, and only missing translations
-     * are filled in from the autotranslate file.
+     * Only fills in entries that are untranslated in the original .po.
+     * Existing translations in the original are never overwritten.
      */
     private function mergeBack(string $poPath, string $autoPath): void
     {
@@ -124,26 +123,35 @@ class Autotranslate extends GettextAbstract
             return;
         }
 
-        $messagesPot = $this->domain->messagesPotFile;
+        $po = GettextPoFile::load($poPath);
+        $autoPo = GettextPoFile::load($autoPath);
 
-        if (!file_exists($messagesPot)) {
-            $api->log->warning('i18n', "{$this->domain}: messages.pot not found at $messagesPot, cannot merge autotranslate");
-            return;
+        $merged = 0;
+        foreach ($po->getUntranslatedEntries() as $entry) {
+            $key = $entry->context !== null
+                ? $entry->context . "\x04" . $entry->msgid
+                : $entry->msgid;
+
+            $autoEntries = $autoPo->find(
+                $entry->msgid,
+                $entry->context
+            );
+
+            foreach ($autoEntries as $autoEntry) {
+                if ($autoEntry->isTranslated) {
+                    $entry->translate($autoEntry->msgstr);
+                    $merged++;
+                    break;
+                }
+            }
         }
 
-        $cmd = sprintf(
-            'msgmerge --compendium %s %s %s -o %s',
-            escapeshellarg($autoPath),
-            escapeshellarg($poPath),
-            escapeshellarg($messagesPot),
-            escapeshellarg($poPath),
-        );
-
-        $success = $this->exec($cmd, "{$this->domain}: Merging autotranslate back into $poPath");
-
-        if ($success) {
-            unlink($autoPath);
-            $api->log->info('i18n', "{$this->domain}: Removed autotranslate file: $autoPath");
+        if ($merged > 0) {
+            $po->save($poPath);
+            $api->log->info('i18n', "{$this->domain}: Merged $merged translations from autotranslate into $poPath");
         }
+
+        unlink($autoPath);
+        $api->log->info('i18n', "{$this->domain}: Removed autotranslate file: $autoPath");
     }
 }
