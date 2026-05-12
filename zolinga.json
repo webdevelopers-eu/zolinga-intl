@@ -1,6 +1,6 @@
 {
     "name": "Zolinga Internationalization",
-    "version": "2.3",
+    "version": "2.4",
     "description": "Provides internationalization support for Zolinga applications.",
     "authors": [
         "Daniel Sevcik <danny@zolinga.net>"
@@ -63,6 +63,15 @@
             "event": "gettext:autotranslate",
             "class": "Zolinga\\Intl\\GettextCli",
             "method": "autotranslate",
+            "origin": [
+                "cli"
+            ]
+        },
+        {
+            "description": "CLI pipeline: extract, autotranslate, and compile in one step.",
+            "event": "autotranslate",
+            "class": "Zolinga\\Intl\\AutotranslateCli",
+            "method": "run",
             "origin": [
                 "cli"
             ]
