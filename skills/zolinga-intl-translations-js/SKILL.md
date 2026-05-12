@@ -1,5 +1,5 @@
 ---
-name: zolinga-intl-js-translations
+name: zolinga-intl-translations-js
 description: Use when writing JavaScript code that needs localized strings. Covers the gettext.js import, domain binding via query string, and the gettext/ngettext API.
 argument-hint: "<module-name>"
 ---
@@ -17,14 +17,15 @@ console.log(gettext("Hello, world!"));
 console.log(ngettext("One apple", "%s apples", 3, 3));
 ```
 
-Aliases: `gettext` = `__`, `ngettext` = `_n`.
 
 ```javascript
-import {__, _n} from "/dist/zolinga-intl/gettext.js?my-module";
+import {gettext, ngettext} from "/dist/zolinga-intl/gettext.js?my-module";
 
-console.log(__("Hello, world!"));
-console.log(_n("One apple", "%s apples", 3, 3));
+console.log(gettext("Hello, world!"));
+console.log(ngettext("One apple", "%s apples", 3, 3));
 ```
+
+Strictly import both methods as `gettext` and `ngettext` for consistency.
 
 ## How It Works
 

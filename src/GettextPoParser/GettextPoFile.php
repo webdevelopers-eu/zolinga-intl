@@ -74,8 +74,8 @@ class GettextPoFile
     /**
      * Examples of n values for each plural form, generated from the plural expression. Max 3 examples per form. 
      * 
-     * Example: [0 => 1, 1 => 0, 2 => 5]
-     * Eg. for given language plural form 0 is used when n=1, form 1 is used when n=0 , and form 2 is used when n=5.
+     * Example: [0 => [1, 21, 31], 1 => [0, 2, 3], 2 => [5, 6, 7]]
+     * Eg. for given language plural form 0 is used when n=1,21,31 , form 1 is used when n=0,2,3 , and form 2 is used when n=5,6,7.
      */
     public private(set) ?array $pluralCountExamples {
         get {
@@ -158,7 +158,7 @@ class GettextPoFile
     {
         return array_values(array_filter(
             $this->entries,
-            fn($e) => $e->msgid !== '' && !$e->isTranslated
+            fn($e) => trim($e->msgid) !== '' && !$e->isTranslated
         ));
     }
 
@@ -297,6 +297,7 @@ class GettextPoFile
         }
 
         foreach ($this->entries as $entry) {
+            if ($entry->msgid === '') continue; // we already output the header
             $out[] = $entry->toPoString();
             $out[] = '';
         }
@@ -384,12 +385,12 @@ class GettextPoFile
      * 
      * For each plural form, finds up to 3 example n values that trigger that form according to the plural expression.
      * 
-     * Returns an array mapping plural form index to example n values, e.g. [0 => 1, 1 => 0, 2 => 5].
-     * Eg. for given language plural form 0 is used when n=1, form 1 is used when n=0 , and form 2 is used when n=5.
+     * Returns an array mapping plural form index to example n values, e.g. [0 => [1, 21, 31], 1 => [0, 2, 3], 2 => [5, 6, 7]].
+     * Eg. for given language plural form 0 is used when n=1,21,31 , form 1 is used when n=0,2,3 , and form 2 is used when n=5,6,7.
      *  
      * @return array|null
      */
-    private function generatePluralCountExamples(): ?array
+    private function generatePluralCountExamples(int $count = 3): ?array
     {
         if (!$this->nplurals || !$this->plural) {
             return null;
@@ -406,8 +407,10 @@ class GettextPoFile
             $cmd = str_replace('%n', strval($n), $cmdTemplate);
             $form = intval(shell_exec($cmd));
             if (in_array($form, $remaining)) {
-                $examples[$form] = $n;
-                $remaining = array_diff($remaining, [$form]);
+                $examples[$form][] = $n;
+                if (count($examples[$form]) >= $count) {
+                    $remaining = array_diff($remaining, [$form]);
+                }
                 if (empty($remaining)) {
                         break;
                 }

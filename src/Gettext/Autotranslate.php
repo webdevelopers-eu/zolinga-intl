@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Zolinga\Intl\Gettext;
 
+use Zolinga\Intl\GettextPoParser\GettextPoEntry;
 use Zolinga\Intl\GettextPoParser\GettextPoFile;
 use Zolinga\Intl\Types\GettextTemplateEnum;
+use Zolinga\System\Types\SeverityEnum;
 
 /**
  * Autotranslate untranslated gettext entries using the AI translator service.
@@ -88,26 +90,22 @@ class Autotranslate extends GettextAbstract
     {
         global $api;
 
-        $context = $entry->isPlural ? $this->buildPluralContext($po, $entry) : '';
-        $retries = 3;
+        $contextMain =
+            ltrim(($api->config['intl']['translate']['instructions']['*'] ?? '') . "\n") .
+            ltrim(($api->config['intl']['translate']['instructions'][$locale] ?? '') . "\n") .
+            ($entry->isPlural ? $this->buildPluralContext($po, $entry) : '');
+        $retries = 7;
         $instructions = [];
 
         do {
             try {
-                $translated = $api->translator->translate(
-                    string: $entry->toPoString(),
-                    fromLang: 'en_US',
-                    toLang: $locale,
-                    context: trim($context . rtrim("\n - " . implode("\n - ", $instructions), "\n -")),
-                    template: GettextTemplateEnum::GETTEXT_ENTRY,
-                );
-
-                $translatedEntry = $po->parseToEntry($translated);
+                $context = trim($contextMain . rtrim("\n - " . implode("\n - ", $instructions), "\n -"));
+                $translatedEntry = $entry->isSingular ? $this->translateSingular($po, $entry, $locale, $context) : $this->translatePlural($po, $entry, $locale, $context);
                 $newInstructions = $this->collectInstruct($entry, $translatedEntry);
 
                 if (!empty($newInstructions)) {
                     $instructions = array_unique(array_merge($instructions, $newInstructions));
-                    throw new \Exception("Original: \n$entry \nTranslation: \n$translated \nFix instructions: " . implode(' ', $newInstructions));
+                    throw new \Exception("Translation failed with " . count($newInstructions) . " issues.");
                 }
 
                 $entry->translate($translatedEntry->msgstr);
@@ -121,6 +119,49 @@ class Autotranslate extends GettextAbstract
         if (!$entry->isTranslated) {
             $api->log->error('i18n', "{$this->domain}/{$locale}: Failed to translate entry '{$entry->msgid}' after multiple attempts, skipping.");
         }
+    }
+
+    private function translateSingular(GettextPoFile $po, GettextPoEntry $entry, string $locale, string $context): GettextPoEntry {
+        global $api;
+        
+        $comments = implode("\n", $entry->translatorComments);
+
+        $translated = $api->translator->translate(
+            string: $entry->msgid,
+            fromLang: 'en_US',
+            toLang: $locale,
+            context: trim($context . "\n" . $comments),
+            template: GettextTemplateEnum::DEFAULT,
+        );
+        
+        $newEntry = $po->parseToEntry($entry->toPoString()); // or `clone $entry`? Which is future proof?
+        $newEntry->translate($translated);
+
+        return $newEntry;
+    }
+
+    private function translatePlural(GettextPoFile $po, GettextPoEntry $entry, string $locale, string $context): GettextPoEntry {
+        global $api;
+
+        $pluralExamples = $po->pluralCountExamples;
+        $pluralInstructions = implode("\n", array_map(
+            fn($n, $form) => "Use plural form `msgstr[$form]` to represent the plural case for count n=" . implode(', ', $n) . " and so on. Do not replace placeholders with these numbers!",
+            $pluralExamples,
+            array_keys($pluralExamples)
+        )) . "\n";
+
+        // We got best results with translategemme by passing the whole thing - the multiple plurals were big issue
+        // when translated separately, because the AI lost track of which plural form is which.  
+        $translated = $api->translator->translate(
+            string: $entry->toPoString(),
+            fromLang: 'en_US',
+            toLang: $locale,
+            context: $pluralInstructions . $context,
+            template: GettextTemplateEnum::GETTEXT_ENTRY,
+        );
+
+        $newEntry = $po->parseToEntry($translated);
+        return $newEntry;
     }
 
     /**
@@ -146,7 +187,7 @@ class Autotranslate extends GettextAbstract
 
         foreach ($entry->msgstr as $index => $str) {
             $keyword = "msgstr" . ($entry->isPlural ? "[$index]" : "");
-            $original = $index === '' || $index === '0' ? $entry->msgid : $entry->msgidPlural;
+            $original = intval($index ?: 0) === 0 ? $entry->msgid : $entry->msgidPlural;
             $instructions = array_unique(array_merge(
                 $instructions,
                 $this->getInstrucForSingle($keyword, $original, $translatedEntry->msgstr[$index] ?? '')
@@ -158,6 +199,8 @@ class Autotranslate extends GettextAbstract
 
     private function getInstrucForSingle(string $keyword, string $original, string $translated): array
     {
+        global $api;
+
         $instructions = [];
 
         if (empty(trim($translated))) {
@@ -171,7 +214,7 @@ class Autotranslate extends GettextAbstract
                 . '|%(?:%|(?:\d+\$)?[+\-]?(?:[0 ]|\'.)?-?\d*(?:\.\d+)?[bcdeEfFgGosuxX])'  // sprintf: %d, %1$s, %.2f, %%, etc.
                 . '|\${[^}]+}'              // ${var} template variables
                 . '|{{[^}]+}}'              // {{var}} template variables
-                . '|\$[a-zA-Z0-9]*'         // $varName
+                . '|\$[a-zA-Z][a-zA-Z0-9]*' // $varName except currency formats like $100
                 . ')/',
             $original,
             $matches
@@ -179,9 +222,16 @@ class Autotranslate extends GettextAbstract
         $placeholders = $matches['placeholders'] ?? [];
         foreach ($placeholders as $ph) {
             if (strpos($translated, $ph) === false) {
-                $instructions[] = "Make sure to include the placeholder '$ph' in the `$keyword`.";
+                $instructions[] = "The placeholder '$ph' must be present in the translation of the `$keyword` line. DO NOT REMOVE IT OR REPLACE IT with numbers or anything else.";
             }
         }
+
+        $icon = empty($instructions) ? '✅' : '⚠️';
+        $api->log->log(
+            $instructions ? SeverityEnum::WARNING : SeverityEnum::INFO, 
+            'i18n', 
+            "✨ Translation: \n$icon Original: $original \n$icon Translat: $translated \nIssues: " . ($instructions ? implode(" ", $instructions) :  'none')
+        );
 
         return $instructions; 
     }

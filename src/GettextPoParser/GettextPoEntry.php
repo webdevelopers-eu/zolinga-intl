@@ -9,6 +9,73 @@ namespace Zolinga\Intl\GettextPoParser;
  */
 class GettextPoEntry implements \Stringable
 {
+    /** True when all msgstr forms are non-empty. */
+    public bool $isTranslated {
+        get {
+            if ($this->msgidPlural !== null) {
+                $count = $this->nplurals ?? count($this->msgstr);
+                for ($i = 0; $i < $count; $i++) {
+                    if (trim($this->msgstr[(string) $i] ?? '') === '') {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return trim($this->msgstr[''] ?? '') !== '';
+        }
+    }
+
+    /** True when entry has plural forms. */
+    public bool $isPlural {
+        get => $this->msgidPlural !== null;
+    }
+
+    public bool $isSingular {
+        get => !$this->isPlural;
+    }
+
+    /** msgctxt value extracted from pseudo-comment, null if none. */
+    public ?string $context {
+        get {
+            foreach ($this->comments as $c) {
+                if (str_starts_with($c, 'msgctxt ')) {
+                    return json_decode(substr($c, 8), flags: JSON_THROW_ON_ERROR);
+                }
+            }
+            return null;
+        }
+        set (?string $value) {
+            // Remove existing msgctxt pseudo-comment
+            $this->comments = array_values(array_filter(
+                $this->comments,
+                fn($c) => !str_starts_with($c, 'msgctxt ')
+            ));
+
+            if ($value !== null) {
+                $this->comments[] = 'msgctxt ' . GettextPoFile::poEncode($value);
+            }
+        }
+    }
+
+    /** Comments of type "#." (translator notes). @return array<string> */
+    public array $translatorComments {
+        get {
+            $comments = array_filter($this->comments, fn($c) => str_starts_with($c, '#.') && !preg_match('/^#\.\s*(TRANSLATORS:\s*)?SOURCE:/', $c));
+            $comments = array_map(fn($c) => preg_replace('/^#\.\s*(TRANSLATORS:\s*)?/', '', trim($c)), $comments); 
+            return array_filter(array_values($comments));
+        }
+    }
+
+    /** Comments of type "#:" (source references). @return array<string> */
+    public array $references {
+        get => array_values(array_filter($this->comments, fn($c) => str_starts_with($c, '#:')));
+    }
+
+    /** Comments of type "#," (flags). @return array<string> */
+    public array $flags {
+        get => array_values(array_filter($this->comments, fn($c) => str_starts_with($c, '#,')));
+    }
+
     /**
      * @param array<string> $comments All comment lines preceding msgid
      * @param string $msgid The untranslated source string
@@ -76,66 +143,7 @@ class GettextPoEntry implements \Stringable
             }, $this->comments)
         ));
     }
-
-    /** True when all msgstr forms are non-empty. */
-    public bool $isTranslated {
-        get {
-            if ($this->msgidPlural !== null) {
-                $count = $this->nplurals ?? count($this->msgstr);
-                for ($i = 0; $i < $count; $i++) {
-                    if (trim($this->msgstr[(string) $i] ?? '') === '') {
-                        return false;
-                    }
-                }
-                return true;
-            }
-            return trim($this->msgstr[''] ?? '') !== '';
-        }
-    }
-
-    /** True when entry has plural forms. */
-    public bool $isPlural {
-        get => $this->msgidPlural !== null;
-    }
-
-    /** msgctxt value extracted from pseudo-comment, null if none. */
-    public ?string $context {
-        get {
-            foreach ($this->comments as $c) {
-                if (str_starts_with($c, 'msgctxt ')) {
-                    return json_decode(substr($c, 8), flags: JSON_THROW_ON_ERROR);
-                }
-            }
-            return null;
-        }
-        set (?string $value) {
-            // Remove existing msgctxt pseudo-comment
-            $this->comments = array_values(array_filter(
-                $this->comments,
-                fn($c) => !str_starts_with($c, 'msgctxt ')
-            ));
-
-            if ($value !== null) {
-                $this->comments[] = 'msgctxt ' . GettextPoFile::poEncode($value);
-            }
-        }
-    }
-
-    /** Comments of type "#." (translator notes). @return array<string> */
-    public array $translatorComments {
-        get => array_values(array_filter($this->comments, fn($c) => str_starts_with($c, '#.')));
-    }
-
-    /** Comments of type "#:" (source references). @return array<string> */
-    public array $references {
-        get => array_values(array_filter($this->comments, fn($c) => str_starts_with($c, '#:')));
-    }
-
-    /** Comments of type "#," (flags). @return array<string> */
-    public array $flags {
-        get => array_values(array_filter($this->comments, fn($c) => str_starts_with($c, '#,')));
-    }
-
+    
     /** Render back to PO format. */
     public function toPoString(): string
     {

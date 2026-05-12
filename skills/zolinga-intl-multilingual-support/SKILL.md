@@ -63,9 +63,12 @@ data/zolinga-intl/default/locale/
 ## How to Mark Strings
 
 See the specialized skills:
-- **PHP**: `zolinga-intl-php-translations`
-- **JavaScript**: `zolinga-intl-js-translations`
-- **HTML**: `zolinga-intl-html-translations`
+## How to Mark Strings
+
+See the specialized skills:
+- **PHP**: `zolinga-intl-translations-php`
+- **JavaScript**: `zolinga-intl-translations-js`
+- **HTML**: `zolinga-intl-translations-html`
 
 ## Troubleshooting
 

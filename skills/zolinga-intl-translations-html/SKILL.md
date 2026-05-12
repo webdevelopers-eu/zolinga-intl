@@ -1,5 +1,5 @@
 ---
-name: zolinga-intl-html-translations
+name: zolinga-intl-translations-html
 description: Use when writing HTML that needs static translation via gettext attributes. Covers the gettext attribute syntax, gettext-context, nested element translation, meta tag, and translation modes.
 argument-hint: "<module-name>"
 ---
@@ -34,6 +34,8 @@ Add `<meta name="gettext" content="translate"/>` in `<head>`:
     <meta charset="UTF-8">
     <meta name="gettext" content="translate"/>
     <title gettext=".">My Page</title>
+    <!-- TRANSLATORS: This is a navigtion menu title text - keep it as short as possible -->
+    <meta name="cms.title" gettext="default:content" content="My Page">
   </head>
   <body>
     <h1 gettext=".">Hello, World!</h1>

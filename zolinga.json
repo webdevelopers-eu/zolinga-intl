@@ -74,12 +74,21 @@
     },
     "config": {
         "intl": {
+            "# locales": "List of supported locales in the application.",
             "locales": [
                 "en_US"
-            ]
+            ],
+            "translate": {
+                "# instructions": "Per-language translation instructions for AI-powered autotranslate feature. It will always be added to the translation context. Key '*' applies to all languages.",
+                "instructions": {
+                    "*": "",
+                    "en_US": ""
+                }
+            }
         },
         "ai": {
             "backends": {
+                "# translator": "Used by zolinga-intl module to perform AI-powered translations",
                 "translator": {
                     "model": "translategemma"
                 }

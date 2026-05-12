@@ -8,6 +8,7 @@ use Zolinga\System\Events\{ServiceInterface};
 use Locale, NumberFormatter;
 
 use const Zolinga\System\IS_CLI;
+use const Zolinga\System\ROOT_DIR;
 
 /**
  * Language and gettext service.
@@ -185,8 +186,9 @@ class LocaleService implements ServiceInterface
     public function getLocalizedFile(string $file): string
     {
         $lang = $this->jsLocale;
-        $try = preg_replace('/(?:\.C)(\.[a-z]+)$/', ".{$lang}\1", $file);
-        return file_exists($try) ? $try : $file;
+        $try = preg_replace('/(\.[a-z]+)$/', ".{$lang}\\1", $file);
+        $file = file_exists($try) ? $try : $file;
+        return $file;
     }
 
     public function __get(string $name): ?string
@@ -399,7 +401,7 @@ class LocaleService implements ServiceInterface
 
         // Diagnostics
         $osSupported = $this->getSystemSupportedLocales();
-        $matches = count(array_filter($osSupported, fn ($locale) => Locale::filterMatches($locale, $this->locale, true)));
+        $matches = count(array_filter($osSupported, fn ($locale) => \Locale::filterMatches($locale, $this->locale, true)));
         if (!$matches) {
             trigger_error("GETTEXT: The locale $this->locale is not supported by the OS. OS supported locales: " . implode(', ', $osSupported), E_USER_WARNING);
             return false;
@@ -415,10 +417,17 @@ class LocaleService implements ServiceInterface
             return false;
         }
 
+        $poPath = realpath(rtrim($path, '/') . "/{$this->locale}.po") ?: "{$this->locale}.po";
+        $zPath = $api->fs->toZolingaUri($path);
+        $zPoPath = $api->fs->toZolingaUri($poPath);
+        $safePoPath = escapeshellarg(ltrim(str_replace(ROOT_DIR, '', $poPath), '/'));
+        $safeMoPath = escapeshellarg(ltrim(str_replace(ROOT_DIR, '', $moPath), '/'));
         trigger_error(
-            "The gettext domain '$domain' is not initialized properly for $this->locale ($path). " .
-                "[1] Is the string '' correctly translated and compiled dictionary files are in the right place? " .
-                "[2] Did you restart PHP after adding new languages? ",
+            "The gettext domain '$domain' is not initialized properly for $this->locale ($zPath). " .
+                "[💡#1] Is the string '' correctly translated and compiled dictionary files are in the right place? Check $zPoPath" .
+                "[💡#2] Did you restart PHP after adding new languages? " . 
+                "[💡#3] Try to run `msgfmt --statistics --check $safePoPath` to check the .po file for errors. " .
+                "[💡#4] Run `msgunfmt $safeMoPath` to inspect the .mo file. ",
             E_USER_WARNING
         );
 

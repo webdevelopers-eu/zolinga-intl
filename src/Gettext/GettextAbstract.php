@@ -170,7 +170,7 @@ class GettextAbstract
         return false;
     }
 
-    protected function exec(string $cmd, string $message): bool
+    protected function exec(string $cmd, string $message, ?string &$output = null): bool
     {
         global $api;
 
@@ -188,6 +188,8 @@ class GettextAbstract
             $api->log->log($status, 'i18n', " ┃ $line");
         }
         chdir($cwd);
+
+        $output = implode("\n", $outputLines);
 
         return $status === SeverityEnum::INFO;
     }

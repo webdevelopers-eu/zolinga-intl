@@ -63,19 +63,26 @@ class Compiler extends GettextAbstract
                 "Merging $poFile with server.pot (msgmerge)"
             );
             $this->exec(
-                "msgfmt " . escapeshellarg($tmpPo) . " --strict -o " . escapeshellarg($moFile) . " 2>&1",
-                "Compiling $tmpPo to $moFile (msgfmt)"
+                "msgfmt --statistics " . escapeshellarg($tmpPo) . " --strict -o " . escapeshellarg($moFile) . " 2>&1",
+                "Compiling $tmpPo to $moFile (msgfmt)",
+                $output
             );
             unlink($tmpPo);
-
-            if (!is_file($moFile)) {
-                $api->log->error('i18n', "$moFile not created");
-            }
 
             // List #, fuzzy records
             $contents = (string) file_get_contents($poFile);
             if (strpos($contents, 'fuzzy') !== false) {
                 $api->log->error('i18n', "$poFile contains fuzzy translations. Review the translations marked with 'fuzzy' keyword and remove the 'fuzzy' keyword from the translations that are correct.");
+            }
+
+            if (trim($output ?? '') == "0 translated messages.") {
+                $zMoPath = $api->fs->toZolingaUri($moFile);
+                $zPoPath = $api->fs->toZolingaUri($poFile);
+                $zPotPath = $api->fs->toZolingaUri($this->domain->serverPotFile);
+                $api->log->warning('i18n', "No translations found in $zPoPath after union with $zPotPath . Check if the strings are correctly extracted to the PO file. $zMoPath will not be generated.");
+                unlink($moFile);
+            } elseif (!is_file($moFile)) {
+                $api->log->error('i18n', "$moFile not created");
             }
         }
     }

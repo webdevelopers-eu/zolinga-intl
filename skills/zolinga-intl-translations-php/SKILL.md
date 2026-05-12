@@ -1,5 +1,5 @@
 ---
-name: zolinga-intl-php-translations
+name: zolinga-intl-translations-php
 description: Use when writing PHP code that needs localized strings. Covers dgettext, dngettext, context separator, and static analysis constraints.
 argument-hint: "<module-name>"
 ---
