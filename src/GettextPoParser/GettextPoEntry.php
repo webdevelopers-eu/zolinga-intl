@@ -69,7 +69,8 @@ class GettextPoEntry implements \Stringable
         get {
             $comments = array_filter($this->comments, fn($c) => str_starts_with($c, '#.') && !preg_match('/^#\.\s*(TRANSLATORS:\s*)?SOURCE:/', $c));
             $comments = array_map(fn($c) => preg_replace('/^#\.\s*(TRANSLATORS:\s*)?/', '', trim($c)), $comments); 
-            return array_filter(array_values($comments));
+            $comments = array_filter(array_values($comments));
+            return array_unique($comments);
         }
     }
 
