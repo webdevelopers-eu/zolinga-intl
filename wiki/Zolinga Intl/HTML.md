@@ -56,6 +56,42 @@ Use the `gettext-context` attribute on an element or any ancestor to disambiguat
 </div>
 ```
 
+# Adjacent Context with gettext-context-adjacent
+
+Use `gettext-context-adjacent="N"` on a translatable element or any ancestor (`ancestor-or-self::*`) to include the text of up to `N` preceding and `N` following translatable elements as `TRANSLATORS` comments. This gives translators surrounding context without making those elements part of the same translatable unit.
+
+The search uses XPath `preceding::*[@gettext]` and `following::*[@gettext]` axes, so it traverses the entire document in **HTML source order regardless of nesting depth**. It is not limited to siblings.
+
+```html
+<div gettext-context-adjacent="1">
+  <span gettext=".">Previous item</span>
+  <span gettext=".">This item</span>
+  <span gettext=".">Next item</span>
+</div>
+```
+
+This produces a comment like:
+
+```
+// TRANSLATORS: Adjacent context (-1): "Previous item"
+// TRANSLATORS: Adjacent context (+1): "Next item"
+```
+
+The traversal collects up to `N` translatable elements in each direction, skipping non-translatable elements. Only elements with a `gettext` attribute are considered.
+
+This is especially useful for large texts (terms of service, legal documents) where each sentence is a separate translatable `<void>` element. Setting `gettext-context-adjacent="3"` on a container gives translators surrounding context for every sentence inside it:
+
+```html
+<div gettext-context-adjacent="3">
+  <void gettext=".">First sentence of terms.</void>
+  <void gettext=".">Second sentence of terms.</void>
+  <void gettext=".">Third sentence of terms.</void>
+  <void gettext=".">Fourth sentence of terms.</void>
+</div>
+```
+
+Each sentence will include up to 3 preceding and 3 following translatable elements as context.
+
 # Translator Comments
 
 You can add comments for translators using HTML comments starting with `TRANSLATORS:`. These comments are extracted and included in `.pot`/`.po` files to provide context and instructions.
@@ -64,7 +100,7 @@ You can add comments for translators using HTML comments starting with `TRANSLAT
 
 ### 1. Before the @gettext Element (Traditional)
 
-Place comments immediately before an element with a `gettext` attribute:
+Place comments as preceding siblings immediately before an element with a `gettext` attribute:
 
 ```html
 <!-- TRANSLATORS: This is a call-to-action button for the free trial signup -->
@@ -74,9 +110,9 @@ Place comments immediately before an element with a `gettext` attribute:
 <a role="show-sources" gettext-context="citation toggle" gettext=".">sources</a>
 ```
 
-### 2. Nested Inside @gettext Element (New)
+### 2. Nested Inside @gettext Element
 
-Place comments as the **first child** inside the @gettext element, before any text or other elements:
+Place comments as the **first child node(s)** inside the @gettext element, before any text or non-comment nodes:
 
 ```html
 <span gettext=".">
@@ -91,9 +127,9 @@ Place comments as the **first child** inside the @gettext element, before any te
 </div>
 ```
 
-### 3. Inherited from Ancestor Elements (New)
+### 3. Inherited from Any Ancestor Element
 
-Place comments before ancestor elements (`<body>`, `<html>`, `<head>`, `<article>`, `<section>`). These comments are inherited by **all** translatable elements inside those ancestors:
+Place comments as preceding siblings immediately before any ancestor element's opening tag, or nested as first child(ren) immediately after an ancestor's opening tag. These comments are inherited by **all** translatable elements inside those ancestors:
 
 ```html
 <!-- TRANSLATORS: This is a legal disclaimer that applies to the entire article -->
@@ -114,14 +150,36 @@ All translatables inside the `<article>` will inherit both comments. This is use
 - Tone instructions
 - Domain-specific terminology rules
 
+Comments placed before **any** ancestor element (not just `<body>`, `<html>`, `<head>`, `<article>`, `<section>`) are inherited. For example, a comment before a `<div>` or `<header>` will also propagate to all descendant translatables:
+
+```html
+<!-- TRANSLATORS: This section contains pricing information -->
+<div class="pricing">
+  <h2 gettext=".">Our Plans</h2>
+  <p gettext=".">Choose the plan that fits your needs.</p>
+</div>
+```
+
+## Extraction Mechanism (in order)
+
+For each translatable element, the extractor collects `TRANSLATORS:` comments in this exact order, then deduplicates:
+
+1. **Auto-generated location comment** — always added first: `// TRANSLATORS: This string's location in the HTML source code is /html/body/...`
+2. **Adjacent context** — from `gettext-context-adjacent` attribute (if set)
+3. **SOURCE comment** — auto-generated reference to the source file
+4. **Comments immediately after the element opening tag** — via `getNestedTranslatorsComments()`: collects consecutive comment child nodes at the start of the element and stops when encountering non-empty text or a non-comment element.
+5. **Comments immediately before the opening tag of the element and of any ancestor** — via `getPrecedingTranslatorsComments()` called for each node in the `ancestor-or-self::*` XPath axis. For each node, it collects consecutive preceding-sibling comment nodes until the first stopper.
+
+**Deduplication:** After collecting all comments from steps 1-5, `array_unique(array_filter(...))` removes duplicates and empty entries.
+
 ## Comment Rules
 
 The comment must:
 - Start with `TRANSLATORS:` (case-sensitive)
 - Be placed in one of three positions:
-  1. Immediately before the element with the `gettext` attribute
+  1. Immediately before the element with the `gettext` attribute (as preceding siblings)
   2. As the first child(ren) inside the element with the `gettext` attribute (before any text or non-comment nodes)
-  3. Before ancestor elements: `<body>`, `<html>`, `<head>`, `<article>`, or `<section>` (inherited by all descendants)
+  3. Before **any** ancestor element (as preceding siblings) or as first child(ren) inside any ancestor — inherited by all descendant translatables
 - Be in a standard HTML comment `<!-- ... -->`
 
 Multiple comments can be used and will be concatenated in the `.po` file. This is useful for providing additional context, usage notes, or special instructions to translators.
@@ -185,11 +243,13 @@ The comments are extracted during the gettext extraction phase (`bin/zolinga get
 ## Comment Extraction Order
 
 Comments are extracted in this order:
-1. Nested comments (inside the @gettext element)
-2. Preceding comments (immediately before the @gettext element)
-3. Inherited comments (from ancestor elements: body, html, head, article, section)
+1. Auto-generated location comment (always included)
+2. Adjacent context (from `gettext-context-adjacent` attribute)
+3. SOURCE comment (auto-generated file reference)
+4. Nested comments (inside the @gettext element, before any text/non-comment nodes)
+5. Preceding comments from the element itself and all ancestors (walked via `ancestor-or-self::*`)
 
-All applicable comments are concatenated in the `.po` file.
+All applicable comments are concatenated in the `.po` file. Duplicate comments are automatically deduplicated.
 
 # Nested Element Translation
 

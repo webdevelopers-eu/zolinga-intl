@@ -34,6 +34,13 @@ class GettextPoEntry implements \Stringable
         get => !$this->isPlural;
     }
 
+    public bool $isFuzzy {
+        get => $this->hasFlag('fuzzy');
+        set(bool $value) {
+            $value ? $this->addFlag('fuzzy') : $this->removeFlag('fuzzy');
+        }
+    }
+
     /** msgctxt value extracted from pseudo-comment, null if none. */
     public ?string $context {
         get {
@@ -73,7 +80,12 @@ class GettextPoEntry implements \Stringable
 
     /** Comments of type "#," (flags). @return array<string> */
     public array $flags {
-        get => array_values(array_filter($this->comments, fn($c) => str_starts_with($c, '#,')));
+        get {
+            $rows = array_filter($this->comments, fn($c) => str_starts_with($c, '#,'));
+            $rows = array_values(array_map(fn($c) => trim($c, ' #,'), $rows));
+            $flags = preg_split('/\s*,\s*/', implode(',', $rows));
+            return array_filter($flags);
+        }
     }
 
     /**
@@ -81,7 +93,6 @@ class GettextPoEntry implements \Stringable
      * @param string $msgid The untranslated source string
      * @param string|null $msgidPlural Plural form, null if not plural
      * @param array<string,string> $msgstr Translations: ["" => "singular"] or ["0" => "...", "1" => "..."]
-     * @param bool $fuzzy Whether "#, fuzzy" flag is set
      * @param int|null $nplurals Expected plural form count (from Plural-Forms header)
      */
     public function __construct(
@@ -89,7 +100,6 @@ class GettextPoEntry implements \Stringable
         public string $msgid = '',
         public ?string $msgidPlural = null,
         public private(set) array $msgstr = ['' => ''],
-        public bool $fuzzy = false,
         public ?int $nplurals = null,
     ) {}
 
@@ -129,19 +139,63 @@ class GettextPoEntry implements \Stringable
             $this->msgstr = ['' => $translation];
         }
 
-        $this->fuzzy = false;
+        $this->isFuzzy = false;
+    }
 
-        // Strip "fuzzy" from #, comment
-        $this->comments = array_values(array_filter(
-            array_map(function ($c) {
-                if (!str_starts_with($c, '#,')) return $c;
-                $flags = array_filter(
-                    array_map('trim', explode(',', substr($c, 2))),
-                    fn($f) => $f !== 'fuzzy'
-                );
-                return $flags ? '#, ' . implode(', ', $flags) : null;
-            }, $this->comments)
-        ));
+    public function removeFlag(string $flag): void
+    {
+        if (!$this->hasFlag($flag)) return;
+
+        $this->comments = array_values($this->comments);        
+        for ($i = 0; $i < count($this->comments); $i++) {
+            $c = $this->comments[$i];
+            if (str_starts_with($c, '#,') && preg_match('/\s*,\s*' . preg_quote($flag, '/') . '(\s*$|\s*,\s*)/', $c)) {
+                $this->comments[$i] = '#, ' . implode(', ', array_filter(
+                    $this->parseFlagComment($c),
+                    fn($f) => $f !== $flag
+                ));
+
+                if (trim($this->comments[$i]) === '#,') {
+                    array_splice($this->comments, $i, 1);
+                    $i--;
+                }
+                
+                // Remove following #| comments
+                $ri = $i + 1;
+                while (isset($this->comments[$ri]) && str_starts_with($this->comments[$ri], '#|')) {
+                    array_splice($this->comments, $ri, 1);
+                }
+            }
+        }
+    }
+
+    public function addFlag(string $flag) {
+        if ($this->hasFlag($flag)) return;
+        foreach ($this->comments as $i => $c) {
+            if (str_starts_with($c, '#,')) {
+                $flags = $this->parseFlagComment($c);
+                $flags[] = $flag;
+                $flags = array_unique($flags);
+                $this->comments[$i] = '#, ' . implode(', ', $flags);
+                return;
+            }
+        }
+        // No existing flags, add new comment
+        $this->comments[] = '#, ' . $flag;
+    }
+
+    public function hasFlag(string $flag): bool
+    {
+        return in_array($flag, $this->flags);
+    }
+
+    private function parseFlagComment(string $comment): array
+    {
+        if (!str_starts_with($comment, '#,')) {
+            return [];
+        }
+        $flags = preg_split('/\s*,\s*/', trim(substr($comment, 2)));
+        return array_filter($flags);
     }
     
     /** Render back to PO format. */

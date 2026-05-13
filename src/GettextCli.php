@@ -26,7 +26,7 @@ class GettextCli implements ListenerInterface
      * @param RequestResponseEvent $event
      * @return array<string, GettextDomain> Keyed by domain name.
      */
-    private function getFilteredDomains(RequestResponseEvent $event): array
+    private function getFilteredDomains(RequestResponseEvent $event): array|false
     {
         global $api;
 
@@ -37,6 +37,14 @@ class GettextCli implements ListenerInterface
 
         if ($filterList && !$all) {
             $domains = array_filter($domains, fn($o) => in_array($o->name, $filterList, true));
+        }
+
+        if (empty($domains)) {
+            $domainNames = array_keys($api->i18n->getGettextDomains());
+            sort($domainNames);
+            $api->log->warning('i18n', "No gettext domains found. Check --domains parameter or use --all parameter. Available domains: \n ‣ " . implode("\n ‣ ", $domainNames));
+            $event->setStatus($event::STATUS_NOT_FOUND, 'No gettext domains found');
+            return false;
         }
 
         return $domains;
@@ -58,10 +66,7 @@ class GettextCli implements ListenerInterface
         $api->log->info('i18n', "▶️  Extracting gettext strings...");
 
         $domains = $this->getFilteredDomains($event);
-
-        if (empty($domains)) {
-            $api->log->warning('i18n', "No gettext domains found to extract. Check --domains parameter.");
-            $event->setStatus($event::STATUS_NOT_FOUND, 'No gettext domains to extract');
+        if ($domains === false) {
             return;
         }
 
@@ -87,10 +92,7 @@ class GettextCli implements ListenerInterface
         global $api;
 
         $domains = $this->getFilteredDomains($event);
-
-        if (empty($domains)) {
-            $api->log->warning('i18n', "No gettext domains found to compile. Check --domains parameter.");
-            $event->setStatus($event::STATUS_NOT_FOUND, 'No gettext domains to compile');
+        if ($domains === false) {
             return;
         }
 
@@ -123,10 +125,7 @@ class GettextCli implements ListenerInterface
         $api->log->info('i18n', "▶️  Autotranslating gettext strings...");
 
         $domains = $this->getFilteredDomains($event);
-
-        if (empty($domains)) {
-            $api->log->warning('i18n', "No gettext domains found to autotranslate. Check --domains parameter.");
-            $event->setStatus($event::STATUS_NOT_FOUND, 'No gettext domains to autotranslate');
+        if ($domains === false) {
             return;
         }
 

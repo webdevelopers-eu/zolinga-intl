@@ -7,7 +7,7 @@ namespace Zolinga\Intl\GettextPoParser;
 /**
  * Parse, inspect, and update a gettext PO/POT file.
  *
- * Only msgstr values and fuzzy flags are mutated; everything else round-trips
+ * Only msgstr values and flags are mutated; everything else round-trips
  * unchanged. Output is compatible with msgmerge/msgfmt.
  *
  * Usage:
@@ -158,7 +158,7 @@ class GettextPoFile
     {
         return array_values(array_filter(
             $this->entries,
-            fn($e) => trim($e->msgid) !== '' && !$e->isTranslated
+            fn($e) => trim($e->msgid) !== '' && (!$e->isTranslated || $e->isFuzzy)
         ));
     }
 
@@ -232,7 +232,7 @@ class GettextPoFile
      * Usage:
      *   $entries = $po->find('Hello');                    // by msgid
      *   $entries = $po->find('Open', 'menu');             // by msgid + context
-     *   $entries = $po->find(fn($e) => $e->fuzzy);        // by callback
+     *   $entries = $po->find(fn($e) => $e->isFuzzy);        // by callback
      *
      * @return array<GettextPoEntry>
      */
@@ -433,14 +433,10 @@ class GettextPoFile
         $msgid = null;
         $msgidPlural = null;
         $msgstr = [];
-        $fuzzy = false;
 
         // Collect comment lines
         while ($i < $n && $lines[$i][0] === '#') {
-            $c = $lines[$i];
-            if (str_contains($c, 'fuzzy')) $fuzzy = true;
-            $comments[] = $c;
-            $i++;
+            $comments[] = $lines[$i++];
         }
 
         // Read keywords until next comment, empty line, or EOF
@@ -480,7 +476,7 @@ class GettextPoFile
             $comments[] = 'msgctxt ' . json_encode($context, self::JSON_FLAGS);
         }
 
-        return new GettextPoEntry($comments, $msgid, $msgidPlural, $msgstr, $fuzzy, $this->nplurals);
+        return new GettextPoEntry($comments, $msgid, $msgidPlural, $msgstr, $this->nplurals);
     }
 
     /**

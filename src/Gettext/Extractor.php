@@ -49,7 +49,7 @@ class Extractor extends GettextAbstract
                 $cmd = "msginit --no-translator --input=" . escapeshellarg($messagesPot) . " --locale=" . escapeshellarg($lang) . " --output=" . escapeshellarg($poFile);
             } else {
                 $api->log->info('i18n', "Updating $poFile");
-                $cmd = "msgmerge --previous --update " . escapeshellarg($poFile) . " " . escapeshellarg($messagesPot);
+                $cmd = "msgmerge --no-fuzzy-matching --previous --backup=none --update " . escapeshellarg($poFile) . " " . escapeshellarg($messagesPot);
             }
             $this->exec("$cmd 2>&1", "Creating $poFile from $messagesPot (msgmerge)");
         }
@@ -300,24 +300,27 @@ class Extractor extends GettextAbstract
         $source = trim(preg_replace('/\s+/', ' ', $source));
         $comments = '';
 
-        $element = $node instanceof GettextElement ? $node : $node->ownerElement;
+        /** @disregard */
+        $isElement = $node instanceof GettextElement;
+        $element = $isElement ? $node : $node->ownerElement;
+        $comments = [];
+
+        // Describe the element, helps with <button> and such.
+        $comments[] = "// TRANSLATORS: This string's location in the HTML source code is " . $node->getNodePath() . " - translate it accordingly.\n";
+        $comments = array_merge($comments, $this->getAdjacentContext($element));
+        $comments[] = "// TRANSLATORS: SOURCE: " . $source;
 
         // Nested comments
-        $axis = $this->sliceToFirstStopper(iterator_to_array($element->childNodes));
-        $comments .= $this->extractComments($axis) ?? '';
-
-        // Preceeding comments
-        $comments .= $this->getPrecedingTranslatorsComments($element);
-
-        // Top-level comments before <body> | <html> | <head> | <article> | <section> (all of them combined)
-        $xpath = 'ancestor::body | ancestor::html | ancestor::head | ancestor::article | ancestor::section';
         /** @disregard */
-        foreach ($element->ownerDocument->xpath->query($xpath, $element) as $ancestor) {
+        $xpath = $element->ownerDocument->xpath;
+        $comments = array_merge($comments, $this->getNestedTranslatorsComments($element));
+        /** @var \DOMXPath $xpath */
+        foreach ($xpath->query('ancestor-or-self::*', $element) as $ancestor) {
             /** @var DOMElement $ancestor */
-            $comments .= $this->getPrecedingTranslatorsComments($ancestor);
+            $comments = array_merge($comments, $this->getPrecedingTranslatorsComments($ancestor));
         }
-
-        $ret = "$comments// " . ($comments ? '' : 'TRANSLATORS: ') . "SOURCE: " . $node->getNodePath() . " " . addcslashes($source, "\n\r\t") . "\n";
+        $comments = array_unique(array_filter($comments));
+        $ret = (empty($comments) ? '' : "// " . ltrim(implode("\n// ", $comments) . "\n")) . "\n";
 
         if ($domain) {
             $ret .= "dgettext(" . var_export($domain, true) . ", " . var_export($string, true) . ");\n";
@@ -328,12 +331,53 @@ class Extractor extends GettextAbstract
         return $ret;
     }
 
-    private function getPrecedingTranslatorsComments(?DOMElement $element): string
+    private function getAdjacentContext(GettextElement $node): array
     {
-        if (!$element) {
-            return '';
+        $context = [];
+
+        $ctxRange = $node->gettextContextAdjacent;
+        if ($ctxRange <= 0) {
+            return $context;
         }
 
+        foreach ( ["preceding::*[@gettext]" => -1, "following::*[@gettext]" => 1] as $query => $direction) {
+            /** @disregard */
+            $list = $node->ownerDocument->xpath->query($query, $node); 
+
+            // DOMNodeList is live and always in document order
+            $list = $direction < 0 ? array_reverse(iterator_to_array($list)) : iterator_to_array($list);
+            $buffer = [];
+            
+            foreach ($list as $adjacent) {
+                /** @var GettextElement $adjacent */
+                if ($adjacent->isTranslatable) {
+                    $string = preg_replace('/^.+\x04/', '', $adjacent->gettextString);
+                    $buffer[] = "// TANSLATORS: Adjacent context (line ". ((count($buffer) + 1) * $direction) . "): " . $string;
+                    if (count($buffer) >= $ctxRange) {
+                        break;
+                    }
+                }
+            }
+
+            if ($direction < 0) {
+                $buffer = array_reverse($buffer);
+            }
+
+            $context = array_merge($context, $buffer);
+        }
+
+        return $context;
+    }
+
+    private function getNestedTranslatorsComments(DOMElement $element): array
+    {
+        /** @disregard */
+        $axis = $this->sliceToFirstStopper(iterator_to_array($element->childNodes));
+        return $this->extractComments($axis) ?? '';
+    }
+
+    private function getPrecedingTranslatorsComments(DOMElement $element): array
+    {
         /** @disregard */
         $axis = iterator_to_array($element->ownerDocument->xpath->query('preceding-sibling::node()', $element));
         $axis = array_reverse($this->sliceToFirstStopper(array_reverse($axis)));
@@ -356,12 +400,12 @@ class Extractor extends GettextAbstract
 
     /** 
      * @param array $axis
-     * @return string|null
+     * @return array
      */
-    private function extractComments(array $axis): ?string
+    private function extractComments(array $axis): array
     {
         // Include preceding comments
-        $comments = "";
+        $comments = [];
         $matched = false;
         foreach ($axis as $node) {
             $text = trim($node->textContent);
@@ -371,14 +415,11 @@ class Extractor extends GettextAbstract
             }
 
             if ($matched && !empty($text)) {
-                $comments .= $text . "\n";
+                $comments = array_merge($comments, explode("\n", trim($text)));
             }
         }
 
-        $comments = explode("\n", trim($comments));
         $comments = array_filter(array_map(fn($c) => trim($c), $comments));
-        $comments = implode("\n// ", $comments);
-        $comments = $comments ? "// " . $comments . "\n" : "";
-        return $comments ?: null;
+        return $comments;
     }
 }

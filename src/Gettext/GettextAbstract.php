@@ -121,6 +121,8 @@ class GettextAbstract
      */
     protected function findFiles(int $fileTypes, array $exclude = self::EXCLUDE_FILES): array
     {
+        global $api;
+
         if ($this->domain->name !== 'test') { // Exclude test domain from translation in non-test domains
             $exclude[] = '*/gettext-test/*';
         }
@@ -139,8 +141,15 @@ class GettextAbstract
             foreach ($iterator as $file) {
                 $path = "./" . $file->getSubPathname();
 
+                // Skip localized files
+                if (preg_match('/\.[a-z]{2}[_-][A-Z]{2}\.[^\.]+$/', $file->getBasename())) {
+                    $api->log->info('i18n', "Skipping localized file: $path");
+                    continue;
+                }
+
                 // Skip ignored extensions
                 if ($this->fnMatch(self::IGNORED_EXTENSIONS, $path)) {
+                    $api->log->info('i18n', "Skipping ignored file: $path");
                     continue;
                 }
 

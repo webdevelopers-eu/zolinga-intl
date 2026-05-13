@@ -27,6 +27,19 @@ ngettext(string singular, string plural, int count, ..params): string
 
 Note, that you don't need to use `dgettext` or `dngettext` functions requiring the `domain` parameter as you do in PHP. The `gettext` and `ngettext` functions are initialized to use the `{MODULE}` domain already.
 
+## Translation Context
+
+Sometimes the same English word needs different translations depending on context (e.g., "Send" as in sending an email vs. "Send" as in submitting a form). To disambiguate, prepend a context label followed by the `\x04` separator character to the `msgid`:
+
+```javascript
+gettext("Confirm form submission\x04Send")
+gettext("Email transmission\x04Send")
+```
+
+The `gettext` and `ngettext` functions automatically detect the `\x04` separator, split the string, and pass the context to the underlying translation engine. The context is invisible to the end user — it only helps translators provide the correct translation for each meaning.
+
+This is equivalent to using `dcnpgettext` with a `msgctxt` parameter, but more convenient for inline use.
+
 ## Translator Comments
 
 You can add comments for translators by placing a JavaScript comment starting with `TRANSLATORS:` immediately before the gettext call. These comments are extracted and included in `.pot`/`.po` files to provide context and instructions:

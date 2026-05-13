@@ -42,12 +42,25 @@ interface GettextNodeInterface
     public string $gettextContext { get; }
 
     /**
+     * The number of adjacent context elements to include in the gettext string, determined by the nearest ancestor with a @gettext-context-adjacent attribute.
+     * 
+     * @var int
+     */
+    public int $gettextContextAdjacent { get; }
+
+    /**
      * All ordered descendant elements of this translatable node.
      *
      * @var array<GettextElement>
      */
     public array $descendantElements { get; }
 
+    /**
+     * Is the contents of this node translateable?
+     *
+     * @var bool
+     */
+    public bool $isTranslatable { get; }
 
     public function translate(string $translation, ?array $elements = null): void;
 

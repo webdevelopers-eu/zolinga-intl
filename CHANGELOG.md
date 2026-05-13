@@ -5,6 +5,17 @@ All notable changes to the Zolinga Intl module.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4] — 2026-05-12
+
+### Added
+ Improved extraction handling for HTML, JavaScript, and PHP files — better nested-element and placeholder detection. (Note: scanning these file types was already supported.)
+
+### Fixed
+- Improved regex patterns for matching special placeholders in translations.
+- Better error messages for missing placeholders in autotranslate instructions.
+- Refined plural translation context handling and merge-back logic.
+- Enhanced placeholder validation with clear instructions for missing translations.
+
 ## [2.3] — 2026-05-11
 
 ### Added

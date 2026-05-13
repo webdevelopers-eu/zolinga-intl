@@ -56,12 +56,21 @@ export default intl;
 // Translate a potentially pluralizable string, potentially specified by context, 
 // and potentially of a different domain (as specified in setMessages or loadJSON).
 
+function splitContext(msgid) {
+    const idx = msgid.indexOf('\x04');
+    return idx >= 0
+        ? { msgctxt: msgid.slice(0, idx), msgid: msgid.slice(idx + 1) }
+        : { msgctxt: undefined, msgid };
+}
+
 export function gettext(msgid, ...args) {
-    return intl.dcnpgettext(domain, undefined, msgid, undefined, undefined, ...args);
+    const { msgctxt, msgid: id } = splitContext(msgid);
+    return intl.dcnpgettext(domain, msgctxt, id, undefined, undefined, ...args);
 }
 
 export function ngettext(msgid, msgid_plural, n, ...args) {
-    return intl.dcnpgettext(domain, undefined, msgid, msgid_plural, n, ...args);
+    const { msgctxt, msgid: id } = splitContext(msgid);
+    return intl.dcnpgettext(domain, msgctxt, id, msgid_plural, n, ...args);
 }
 
 export { gettext as __, ngettext as _n };

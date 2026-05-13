@@ -14,8 +14,17 @@ class GettextAttribute extends DOMAttr implements GettextNodeInterface
     public string $gettextString { get => ($this->gettextContext ? $this->gettextContext . GETTEXT_CTX_END : '') . trim($this->textContent); }    
     public array $descendantElements { get => []; }
     /** @disregard */
-    public string $gettextContext { get => trim($this->ownerDocument?->xpath->evaluate('string((ancestor-or-self::*[@gettext-context])[1]/@gettext-context)', $this)); }
+    public string $gettextContext { 
+        get => $this->ownerElement->gettextContext;
+    }
+    /** @disregard */
+    public int $gettextContextAdjacent { 
+        get => $this->ownerElement->gettextContextAdjacent; 
+    }
     public private(set) bool $isTranslated = false;
+    public bool $isTranslatable {
+        get => (bool) preg_match('/(^|\s)(.+:)?' . preg_quote($this->localName, '/') . '(#|\s|$)/', $this->gettextAttribute->textContent ?? '');
+    }
 
     public function ensureGettextHash(): bool
     {

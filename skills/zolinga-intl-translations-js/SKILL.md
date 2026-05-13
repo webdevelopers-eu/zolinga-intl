@@ -27,6 +27,17 @@ console.log(ngettext("One apple", "%s apples", 3, 3));
 
 Strictly import both methods as `gettext` and `ngettext` for consistency.
 
+## Translation Context
+
+When the same English word needs different translations depending on context, prepend a context label followed by `\x04` (end-of-transmission character) to the `msgid`:
+
+```javascript
+gettext("Confirm form submission\x04Send")
+gettext("Email transmission\x04Send")
+```
+
+The functions automatically split on `\x04` and pass the context to the translation engine. The context is invisible to users — it only helps translators pick the right translation.
+
 ## How It Works
 
 1. `gettext.js` reads the `lang` cookie (set by the locale service).
