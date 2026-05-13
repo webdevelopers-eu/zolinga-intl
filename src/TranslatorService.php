@@ -157,10 +157,10 @@ class TranslatorService implements ServiceInterface, ListenerInterface
         $prompt = $template;
         $recursion = 8;
         do {
-            str_replace(
+            $prompt = str_replace(
                 array_keys($replacements),
                 array_values($replacements),
-                $template,
+                $prompt,
                 $count
             );
         } while ($recursion-- && $count > 0); // $context may have variables too.

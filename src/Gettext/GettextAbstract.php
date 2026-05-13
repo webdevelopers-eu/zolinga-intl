@@ -141,19 +141,19 @@ class GettextAbstract
             foreach ($iterator as $file) {
                 $path = "./" . $file->getSubPathname();
 
-                // Skip localized files
-                if (preg_match('/\.[a-z]{2}[_-][A-Z]{2}\.[^\.]+$/', $file->getBasename())) {
-                    $api->log->info('i18n', "Skipping localized file: $path");
-                    continue;
-                }
-
-                // Skip ignored extensions
-                if ($this->fnMatch(self::IGNORED_EXTENSIONS, $path)) {
-                    $api->log->info('i18n', "Skipping ignored file: $path");
-                    continue;
-                }
-
                 if ($this->fnMatch($globs, $path) && !$this->fnMatch($exclude, $path)) {
+                    // Skip localized files
+                    if (preg_match('/\.[a-z]{2}[_-][A-Z]{2}\.[^\.]+$/', $file->getBasename())) {
+                        $api->log->info('i18n', "Skipping localized file: $path");
+                        continue;
+                    }
+
+                    // Skip ignored extensions
+                    if ($this->fnMatch(self::IGNORED_EXTENSIONS, $path)) {
+                        $api->log->info('i18n', "Skipping ignored file: $path");
+                        continue;
+                    }
+
                     $files[] = $file->getPathname();
                 }
             }
