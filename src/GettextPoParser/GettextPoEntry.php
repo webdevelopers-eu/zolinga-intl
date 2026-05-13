@@ -69,7 +69,6 @@ class GettextPoEntry implements \Stringable
         get {
             $comments = array_filter($this->comments, fn($c) => str_starts_with($c, '#.') && !preg_match('/^#\.\s*(TRANSLATORS:\s*)?SOURCE:/', $c));
             $comments = array_map(fn($c) => preg_replace('/^#\.\s*(TRANSLATORS:\s*)?/', '', trim($c)), $comments); 
-            $comments = array_filter(array_values($comments));
             return array_unique($comments);
         }
     }
@@ -102,7 +101,9 @@ class GettextPoEntry implements \Stringable
         public ?string $msgidPlural = null,
         public private(set) array $msgstr = ['' => ''],
         public ?int $nplurals = null,
-    ) {}
+    ) {
+        $this->comments = array_unique($comments);
+    }
 
     /**
      * Set translation(s) for this entry. Strips fuzzy flag.
@@ -204,7 +205,7 @@ class GettextPoEntry implements \Stringable
     {
         $out = [];
 
-        foreach ($this->comments as $c) {
+        foreach (array_unique($this->comments) as $c) {
             if (str_starts_with($c, 'msgctxt ')) continue;
             $out[] = $c;
         }

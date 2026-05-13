@@ -270,6 +270,7 @@ class Extractor extends GettextAbstract
         $changed = false;
 
         foreach ($doc->translatables as $id => $node) {
+            $id = preg_replace('/#[a-z0-9]{6}/', '', $id); // Remove existing hash to avoid duplicates
             $strings[] = $this->makePhpLine($id, $node, "<$doc->filePath>" . " ($id, " . $node->getNodePath() . ")");
             $changed = $node->ensureGettextHash() || $changed;
         }
