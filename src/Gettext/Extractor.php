@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Zolinga\Intl\Gettext;
 
+use DOMAttr;
 use DOMCdataSection;
 use DOMCharacterData;
 use DOMComment;
@@ -269,7 +270,7 @@ class Extractor extends GettextAbstract
         $changed = false;
 
         foreach ($doc->translatables as $id => $node) {
-            $strings[] = $this->makePhpLine($id, $node, "<$doc->filePath>" . " ($id)");
+            $strings[] = $this->makePhpLine($id, $node, "<$doc->filePath>" . " ($id, " . $node->getNodePath() . ")");
             $changed = $node->ensureGettextHash() || $changed;
         }
 
@@ -306,8 +307,11 @@ class Extractor extends GettextAbstract
         $comments = [];
 
         // Describe the element, helps with <button> and such.
-        $comments[] = "// TRANSLATORS: This string's location in the HTML source code is " . $node->getNodePath() . " - translate it accordingly.\n";
-        $comments = array_merge($comments, $this->getAdjacentContext($element));
+        $comments = array_merge(
+            $comments, 
+            $this->getAdjacentContext($element),
+            $this->getCommentsAboutSemanticElement($node)
+        );
         $comments[] = "// TRANSLATORS: SOURCE: " . $source;
 
         // Nested comments
@@ -329,6 +333,53 @@ class Extractor extends GettextAbstract
         }
 
         return $ret;
+    }
+
+    private function getCommentsAboutSemanticElement(DOMElement|DOMAttr $node): array
+    {
+        $comments = [];
+        $semanticTags = [
+            'button' => 'button', 
+            'a' => 'link',
+            'label' => 'form label', 
+            'option' => 'form option', 
+            'legend' => 'legend', 
+            'th' => 'table header',
+            'menu' => 'menu',
+            'nav' => 'navigation',
+            'h1' => 'heading',
+            'h2' => 'heading',
+            'h3' => 'heading',
+            'h4' => 'heading',
+            'h5' => 'heading',
+            'h6' => 'heading',
+            'input' => 'form input',
+            'textarea' => 'form textarea',
+            'cite' => 'citation',
+            'abbr' => 'abbreviation',
+            'acronym' => 'acronym',
+            'quote' => 'quotation',
+            'q' => 'quotation',
+            'p' => 'paragraph',
+            'title' => 'title',
+            'meta' => 'metadata',
+        ];
+        $element = $node instanceof DOMAttr ? $node->ownerElement : $node;
+        // Find the closest semantic ancestor
+        $inspect = $element;
+        while ($inspect) {
+            if (isset($semanticTags[$inspect->tagName])) {
+                if ($node instanceof DOMAttr) {
+                    $comments[] = "// TRANSLATORS: This string is the value of the '" . $node->name . "' attribute of a <{$inspect->tagName}> element, which is a {$semanticTags[$inspect->tagName]}.";
+                } else {                     
+                    $comments[] = "// TRANSLATORS: This string is inside a <{$inspect->tagName}> element, which is a {$semanticTags[$inspect->tagName]}.";
+                }
+                break;
+            }
+            $inspect = $inspect->parentElement;
+        }
+
+        return $comments;
     }
 
     private function getAdjacentContext(GettextElement $node): array
