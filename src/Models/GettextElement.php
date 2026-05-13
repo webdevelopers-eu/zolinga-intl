@@ -16,9 +16,9 @@ class GettextElement extends DOMElement implements GettextNodeInterface
     public string $gettextString { get => $this->normalizeSpace($this->getGettextString()); }
     public array $descendantElements { get => iterator_to_array($this->getElementsByTagName('*')); }
     /** @disregard */
-    public string $gettextContext { get => trim($this->ownerDocument?->xpath->evaluate('string((ancestor-or-self::*[@gettext-context])[1]/@gettext-context)', $this)); }
+    public string $gettextContext { get => trim($this->ownerDocument?->xpath->evaluate('string((ancestor-or-self::*[@gettext-context])[last()]/@gettext-context)', $this)); }
     /** @disregard */
-    public int $gettextContextAdjacent { get => (int)($this->ownerDocument?->xpath->evaluate('number((ancestor-or-self::*/@gettext-context-adjacent)[1])', $this) ?: 0); }
+    public int $gettextContextAdjacent { get => (int)($this->ownerDocument?->xpath->evaluate('number((ancestor-or-self::*/@gettext-context-adjacent)[last()])', $this) ?: 0); }
     public private(set) bool $isTranslated = false;
     public bool $isTranslatable {
         get => (bool) preg_match('/(^|\s)(.+:)?\.(#|\s|$)/', $this->gettextAttribute->textContent ?? '');

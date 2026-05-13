@@ -404,7 +404,7 @@ class Extractor extends GettextAbstract
                 /** @var GettextElement $adjacent */
                 if ($adjacent->isTranslatable) {
                     $string = preg_replace('/^.+\x04/', '', $adjacent->gettextString);
-                    $buffer[] = "// TANSLATORS: Adjacent context (line ". ((count($buffer) + 1) * $direction) . "): " . $string;
+                    $buffer[] = "// TRANSLATORS: Adjacent context (line ". ((count($buffer) + 1) * $direction) . "): " . $string;
                     if (count($buffer) >= $ctxRange) {
                         break;
                     }
