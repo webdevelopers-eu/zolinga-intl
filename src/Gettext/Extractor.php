@@ -361,7 +361,7 @@ class Extractor extends GettextAbstract
             'acronym' => 'acronym',
             'quote' => 'quotation / should be precise translation of the quoted text',
             'q' => 'quotation / should be precise translation of the quoted text',
-            'p' => 'paragraph',
+            'p' => 'paragraph / follow rules for general text in {{TARGET_LANG}} language',
             'title' => 'page title / follow rules for web page titles - SEO applies',
             'meta' => 'metadata content / should be concise and SEO-friendly if it is used in title or description meta tags',
         ];
