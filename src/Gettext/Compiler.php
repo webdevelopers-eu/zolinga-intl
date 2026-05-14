@@ -79,7 +79,7 @@ class Compiler extends GettextAbstract
                 $zMoPath = $api->fs->toZolingaUri($moFile);
                 $zPoPath = $api->fs->toZolingaUri($poFile);
                 $zPotPath = $api->fs->toZolingaUri($this->domain->serverPotFile);
-                $api->log->warning('i18n', "No translations found in $zPoPath after union with $zPotPath . Check if the strings are correctly extracted to the PO file. $zMoPath will not be generated.");
+                $api->log->info('i18n', "No translations found in $zPoPath after union with $zPotPath . Check if the strings are correctly extracted to the PO file. $zMoPath will not be generated.");
                 unlink($moFile);
             } elseif (!is_file($moFile)) {
                 $api->log->error('i18n', "$moFile not created");

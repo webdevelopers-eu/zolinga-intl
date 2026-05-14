@@ -399,6 +399,7 @@ class LocaleService implements ServiceInterface
     private function testGettext(string $domain, ?string $path = null): bool
     {
         global $api;
+        static $warnings = [];
 
         // Test
         $testString = '';
@@ -420,10 +421,11 @@ class LocaleService implements ServiceInterface
         if (!is_file($moPath) || !is_readable($moPath)) {
             $zMoPath = $api->fs->toZolingaUri($moPath);
 
-            if (IS_CLI && is_readable($path . "/{$this->locale}.po")) {
-                // .po exists but .mo not - probably not compiled yet
-                trigger_error("GETTEXT: The compiled dictionary file $zMoPath is missing or is not readable. Did you compile the dictionary?", E_USER_WARNING);
-            }
+            // if (IS_CLI && !isset($warnings[$zMoPath]) && is_readable($path . "/{$this->locale}.po")) {
+            //     $warnings[$zMoPath] = true;
+            //     // .po exists but .mo not - probably not compiled yet
+            //     trigger_error("GETTEXT: The compiled dictionary file $zMoPath is missing or is not readable. $path/{$this->locale}.po exists. Did you compile the dictionary?", E_USER_WARNING);
+            // }
             return false;
         }
 
