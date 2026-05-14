@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Zolinga\Intl;
 
-use Zolinga\System\Events\{ServiceInterface};
+use Zolinga\System\Events\{Event, ServiceInterface};
 use Locale, NumberFormatter;
 
 use const Zolinga\System\IS_CLI;
@@ -170,6 +170,14 @@ class LocaleService implements ServiceInterface
         );
 
         $this->initCurrentLanguage();
+    }
+
+    public function onSystemStart(Event $event): void
+    {
+        // Nothing to do here, gettext domains are initialized lazily when the language is set.
+        // We just need to have this method to be able to listen to the system:start event and initialize gettext before any other module tries to use it.
+        // Withoug initializing locales in constructor if somebody called gettext() before $api->locale
+        // is fully initialized, then gettext would not work. So we must init it always before anything else.
     }
 
     /**

@@ -16,6 +16,16 @@
             ]
         },
         {
+            "description": "Locale initialization, namely gettext catalog initialization.",
+            "event": "system:start",
+            "class": "Zolinga\\Intl\\LocaleService",
+            "method": "onSystemStart",
+            "origin": [
+                "internal"
+            ],
+            "priority": 0.9
+        },
+        {
             "description": "Provides gettext domain discovery and i18n workflow services.",
             "service": "i18n",
             "class": "Zolinga\\Intl\\I18nService",
