@@ -16,6 +16,24 @@ use Zolinga\System\Types\SeverityEnum;
 class GettextDomain implements \Stringable
 {
     /**
+     * Returns the version of the module.
+     *
+     * @var string
+     */
+    public string $version {
+        get {
+            global $api;
+            $path = $api->manifest->getModuleRealPathByName($this->name);
+            if ($path) {
+                $config = json_decode(file_get_contents($path . "/zolinga.json") ?? '{}', true);
+                return $config['version'] ?? '1.0';
+            } else {
+                return '1.0';
+            }
+        }
+    }
+
+    /**
      * @param string $name Domain name (e.g. 'acme-module', 'default', 'system')
      * @param string $serverOutput Path for .pot/.po/.mo files (PHP + HTML)
      * @param string $clientJsonOutput Path for JS .json dictionaries

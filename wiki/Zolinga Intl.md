@@ -48,6 +48,29 @@ The translation workflow consists of the following steps
 - **Translating the strings**
   - You need to translate untranslated strings in the `{MODULE}/locale/*.po` files. You can use any text editor or a specialized translation tool like [Poedit](https://poedit.net/).
   - Alternatively, use the AI autotranslate command: `bin/zolinga gettext:autotranslate --domains={DOMAINS}`. This sends untranslated entries to the AI translator and fills them in automatically. See [Gettext Autotranslate](:ref:event/gettext/autotranslate) for details.
+  - Alternatively, use the AI autotranslate command: `bin/zolinga gettext:autotranslate --domains={DOMAINS}`. This sends untranslated entries to the AI translator and fills them in automatically. See [Gettext Autotranslate](:ref:event/gettext/autotranslate) for details.
+
+  ## Autotranslate instruction files
+
+  The autotranslate pipeline allows adding extra instructions that are appended to the AI translation context via the configuration key `intl.translate.instructions` in `config/global.json`.
+
+  - Values may be either a plain string (inline instructions) or a Zolinga URI pointing to a file (for example `config://zolinga-intl/translate-prompt-all.md`).
+  - When a Zolinga URI is provided the system resolves it with the filesystem service (`$api->fs->toPath($uri)`) and reads the file contents. If the resolved path is missing or unreadable a one-time warning is logged.
+
+  Example `config/global.json` snippet:
+
+  ```json
+  "intl": {
+    "translate": {
+      "instructions": {
+        "*": "config://zolinga-intl/translate-prompt-all.md",
+        "cs_CZ": "config://my-module/translate-cs.md"
+      }
+    }
+  }
+  ```
+
+  Use `config://` to store shared prompts under `config/` so they are editable without changing `global.json` itself. For details on supported Zolinga URI schemes and helper methods, see the filesystem docs: `system/wiki/ref/event/system/service/fs.md`.
 - **Compiling the translations**
   - You need to compile the translations to generate the `.mo` files for PHP, `.json` dictionaries for Javascript or `.{lang}_{TERRITORY}.html` static translations for HTML. The compilation is done by the `bin/zolinga gettext:compile --domains={DOMAINS}` command. `--domains` accepts a comma-separated list of domains.
 

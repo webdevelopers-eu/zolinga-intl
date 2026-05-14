@@ -88,10 +88,10 @@
                 "en_US"
             ],
             "translate": {
-                "# instructions": "Per-language translation instructions for AI-powered autotranslate feature. It will always be added to the translation context. Key '*' applies to all languages.",
+                "# instructions": "Per-language translation instructions for AI-powered autotranslate feature. It will always be added to the translation context. Key '*' applies to all languages. Value: text instructions or Zolinga file path.",
                 "instructions": {
-                    "*": "",
-                    "en_US": ""
+                    "*": "config://zolinga-intl/translate-prompt-all.md",
+                    "en_US": "Do not translate English to English."
                 }
             }
         },

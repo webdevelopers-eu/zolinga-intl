@@ -141,6 +141,14 @@ class GettextDocument extends DOMDocument implements \Stringable
             foreach (self::parseGettextAttr($gettextAttrNode) as ['domain' => $domain, 'keyword' => $keyword, 'hash' => $hash]) {
                 $node = $keyword === '.' ? $element : $element->getAttributeNode($keyword);
                 /** @var GettextNodeInterface $node */
+
+                // Skip nodes that are empty after trimming their gettext string
+                $string = trim((string) ($node->gettextString ?? ''));
+                if ($string === '') {
+                    // Do not treat empty content as translatable — skip
+                    continue;
+                }
+
                 $addedHashes = $node->ensureGettextHash() || $addedHashes;
                 $this->translatables["$domain:$keyword#$node->gettextHash"] = $node;
             }

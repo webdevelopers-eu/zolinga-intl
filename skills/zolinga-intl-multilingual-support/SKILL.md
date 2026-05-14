@@ -27,6 +27,23 @@ Edit `config/global.json`:
 
 The first locale is the default. The `zolinga-intl` module's `zolinga.json` also has a default `config.intl.locales` of `["en_US"]`.
 
+## Autotranslate instruction files
+
+The autotranslate feature reads extra instructions from config key `intl.translate.instructions`. Values may be either the instruction text (string) or a Zolinga URI pointing to a file, for example:
+
+```
+"intl": {
+  "translate": {
+    "instructions": {
+      "*": "config://zolinga-intl/translate-prompt-all.md",
+      "cs_CZ": "config://my-module/translate-cs.md"
+    }
+  }
+}
+```
+
+When a Zolinga URI is provided the system resolves it via `$api->fs->toPath()` and reads the file contents. See the filesystem docs: [system/wiki/ref/event/system/service/fs.md](system/wiki/ref/event/system/service/fs.md#L1).
+
 ## Where to Edit .po Files
 
 ### Rules of .po Editing

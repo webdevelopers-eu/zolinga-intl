@@ -21,6 +21,12 @@ A web component has **two separate translation surfaces**:
 
 ## 1. HTML Template — Same Rules as Static HTML
 
+## Module Domain Requirement (MUST)
+
+- The gettext domain for ALL translatable strings in a web-component's HTML **must** be the module name where the component lives. For example, if the component is in the `my-module` module, all `gettext` keywords must be prefixed with `my-module:` — e.g. `gettext="my-module:label"`, `gettext="my-module:."`.
+- This applies to both HTML attributes and the `?{domain}` query in JavaScript `gettext.js` imports (see JS section). Using the module name as the domain ensures translations are extracted, stored, and compiled under the correct domain and prevents collisions between modules.
+
+
 Mark translatable content in the `.html` file exactly as described in **zolinga-intl-translations-html**:
 
 ```html
@@ -31,8 +37,8 @@ Mark translatable content in the `.html` file exactly as described in **zolinga-
     <link rel="stylesheet" href="my-widget.css"/>
   </head>
   <body>
-    <h1 gettext=".">Hello, World!</h1>
-    <button gettext="." title="Submit form">Send</button>
+    <h1 gettext="my-module:.">Hello, World!</h1>
+    <button gettext="my-module:." title="Submit form">Send</button>
   </body>
 </html>
 ```
@@ -40,6 +46,7 @@ Mark translatable content in the `.html` file exactly as described in **zolinga-
 Rules that carry over from static HTML:
 - Add `<meta name="gettext" content="translate"/>` in `<head>`.
 - Use `gettext="."` for text content, `gettext="alt"` for images, `gettext="title"` for titles, etc.
+ - Use `gettext="{module}:."` for text content, `gettext="{module}:alt"` for images, `gettext="{module}:title"` for titles, etc. Replace `{module}` with the actual module name (e.g. `my-module`).
 - Use `gettext-context` to disambiguate short strings.
 - Warning: Unlike in server-side static HTML files, the `<void gettext=".">` must not be used in web-component static HTMLs as those HTMLs are served as-is without server-side processing.
 - Add `<!-- TRANSLATORS: ... -->` comments for context but be aware - those comments will be visible in the final HTML source and may be seen by end users. Do not include sensitive information in those comments.
@@ -138,6 +145,8 @@ After changing `zolinga.json`, bump the module version and run `bin/zolinga` (no
 
 1. **Mark** strings in `.html` with `gettext` attributes and in `.js` with `gettext()` calls.
 2. **Extract** strings: `bin/zolinga gettext:extract --domains=my-module`
+
+  Important: the `--domains` argument must be the module name (for example `--domains=my-module`) so extracted strings are associated with the correct domain.
 3. **Translate** `.po` files in `modules/my-module/locale/` or run `bin/zolinga gettext:autotranslate --domains=my-module` to use the Zolinga AI Translation Service.
 4. **Compile** translations: `bin/zolinga gettext:compile --domains=my-module`
 5. **Verify** — switch the page locale and confirm the component loads the localized template.
@@ -195,7 +204,7 @@ When adding `gettext="domain:."` attributes to HTML elements, **never include a 
 
 | ✅ Correct | ❌ Wrong |
 |-----------|---------|
-| `gettext="ipdefender:."` | `gettext="ipdefender:.#a3f1b9"` |
+| `gettext="my-module:."` | `gettext="my-module:.#a3f1b9"` |
 | `gettext="default:."` | `gettext="default:.#6bd0c5"` |
 | `gettext="."` | `gettext=".#abc123"` |
 

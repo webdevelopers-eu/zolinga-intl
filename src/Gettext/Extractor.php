@@ -45,14 +45,23 @@ class Extractor extends GettextAbstract
         $messagesPot = $this->domain->messagesPotFile;
         foreach ($this->locales as $lang) {
             $poFile = $this->domain->serverOutput . "/$lang.po";
+            $poFileEsc = escapeshellarg($poFile);
+            $messagePotEsc = escapeshellarg($messagesPot);
+            $langEsc = escapeshellarg($lang);
+
             if (!is_file($poFile)) {
                 $api->log->info('i18n',  "Creating $poFile");
-                $cmd = "msginit --no-translator --input=" . escapeshellarg($messagesPot) . " --locale=" . escapeshellarg($lang) . " --output=" . escapeshellarg($poFile);
+                $cmd = "msginit --no-translator --input=$messagePotEsc --locale=$langEsc --output=$poFileEsc";
             } else {
                 $api->log->info('i18n', "Updating $poFile");
-                $cmd = "msgmerge --no-fuzzy-matching --previous --backup=none --update " . escapeshellarg($poFile) . " " . escapeshellarg($messagesPot);
+                $cmd = "msgmerge --no-fuzzy-matching --previous --backup=none --update $poFileEsc $messagePotEsc";
             }
             $this->exec("$cmd 2>&1", "Creating $poFile from $messagesPot (msgmerge)");
+
+            if ($lang === 'en_US') {
+                $cmd = "msgen $poFileEsc -o $poFileEsc";
+                $this->exec("$cmd 2>&1", "Generating identical en_US translations for $poFile (msgen)");
+            }
         }
     }
 
@@ -234,8 +243,9 @@ class Extractor extends GettextAbstract
             "--add-comments=TRANSLATORS " . // If preceded by comments starting "TRANSLATORS: ", include those
             "--verbose " .
             "--omit-header " .
-            "--join-existing --from-code UTF-8 -F --package-version=\"1.0\" " .
+            "--join-existing --from-code UTF-8 -F  " .
             "-o " . escapeshellarg($potFile) . " " .
+            "--package-version=" . escapeshellarg($this->domain->version) . " " .
             "--package-name=" . escapeshellarg($this->domain->name) . " " .
             ($extraParam ?? '') . " " .
             implode(" ", $filesEsc);
@@ -366,6 +376,20 @@ class Extractor extends GettextAbstract
             'meta' => 'metadata content / should be concise and SEO-friendly if it is used in title or description meta tags',
         ];
         $element = $node instanceof DOMAttr ? $node->ownerElement : $node;
+
+        // Collect semantic attributes (role, aria-*, type, name, for, href, lang, state flags)
+        $semanticAttrs = ['role', 'type', 'name', 'lang', 'aria-label', 'aria-roledescription', 'aria-placeholder', 'aria-description', 'aria-valuetext'];
+        $attrs = [];
+        foreach ($element->attributes as $attr) {
+            /** @var DOMAttr $attr */
+            if (in_array($attr->name, $semanticAttrs, true)) {
+                $attrs[] = "{$attr->name}=\"{$attr->value}\"";
+            }
+        }
+        if ($attrs) {
+            $comments[] = "// TRANSLATORS: The text has the following HTML attributes: " . implode(', ', $attrs) . ".";
+        }
+
         // Find the closest semantic ancestor
         $inspect = $element;
         while ($inspect) {

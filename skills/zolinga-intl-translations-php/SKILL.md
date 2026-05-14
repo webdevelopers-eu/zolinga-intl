@@ -14,6 +14,29 @@ echo dgettext('my-module', 'Hello, world!');
 
 The domain is always the **module folder name** (e.g. `ipdefender`, `zolinga-cms`).
 
+## CRITICAL: Do NOT use `_()` in PHP
+
+- Always use `dgettext('module', '...')` for single strings and `dngettext('module', 'one', 'many', $n)` for plurals. The domain **must** be the module folder name in which the PHP file resides (for example `ipdefender`, `ipdefender-base`, `zolinga-rms`, `system`).
+- If you find usages of the shorthand `_('...')`, replace them with `dgettext('module', '...')`. Example:
+
+```php
+// BAD
+echo _('Settings loaded');
+
+// GOOD (in module 'zolinga-rms')
+echo dgettext('zolinga-rms', 'Settings loaded');
+```
+
+When converting formatted strings, keep `sprintf` wrapping the gettext call:
+
+```php
+// BAD
+throw new \InvalidArgumentException(_('Username %s is already taken'), 403);
+
+// GOOD
+throw new \InvalidArgumentException(sprintf(dgettext('my-module', 'Username %s is already taken'), $username), 403);
+```
+
 ## Plural Forms — dngettext()
 
 ```php

@@ -49,7 +49,7 @@ class Autotranslate extends GettextAbstract
 
         $sourcePath = $this->resolveSourcePath($poPath, $autoPath);
         if ($sourcePath === null) {
-            $api->log->warning('i18n', "{$this->domain}: No PO file found for locale $locale, skipping");
+            $api->log->info('i18n', "{$this->domain}: No PO file found for locale $locale, skipping");
             return;
         }
 
@@ -57,11 +57,28 @@ class Autotranslate extends GettextAbstract
         $untranslated = $po->getUntranslatedEntries();
         $api->log->info('i18n', "{$this->domain}/{$locale}: Translating " . count($untranslated) . " untranslated entries");
 
-        foreach ($untranslated as $entry) {
+        $startTime = time();
+        foreach ($untranslated as $idx =>$entry) {
             $this->autotranslateEntry($po, $entry, $locale, $autoPath);
+
+            $elapsed = time() - $startTime;
+            $timePerEntry = $elapsed / ($idx + 1);
+            $eta = (int) round($timePerEntry * (count($untranslated) - $idx - 1), 2);
+            $etaStr = $this->secondsToTime($eta);
+            $timePerEntryStr = round($timePerEntry, 2) . "s/entry";
+
+            $api->log->info('i18n', "{$this->domain}/{$locale}: Progress " . ($idx + 1) . "/" . count($untranslated) . " (⏰ ETA: $etaStr, $timePerEntryStr average)");
         }
 
         $this->mergeBack($poPath, $autoPath);
+    }
+
+    private function secondsToTime(int $seconds): string
+    {
+        $hours = floor($seconds / 3600);
+        $minutes = floor(($seconds % 3600) / 60);
+        $seconds = $seconds % 60;
+        return ($hours > 0 ? "$hours hr " : "") . "$minutes min $seconds sec";
     }
 
     /**
@@ -74,13 +91,50 @@ class Autotranslate extends GettextAbstract
         global $api;
 
         if (file_exists($autoPath)) {
-            $api->log->info('i18n', "{$this->domain}: Picking up from previous autotranslate session: $autoPath");
+            $safePath = $api->fs->toZolingaUri($autoPath);
+            $api->log->info('i18n', "{$this->domain}: Picking up from previous autotranslate session: $safePath");
             return $autoPath;
         }
         if (file_exists($poPath)) {
             return $poPath;
         }
         return null;
+    }
+
+    /**
+     * Get global instruction string for a locale, combining '*' and locale-specific config.
+     * 
+     * If the config value is a zolinga URI, it will attempt to read the file content. 
+     * If it is a string directly, it will use it as is.
+     */
+    private function getInstructionGlobalConfig(string $locale): string
+    {
+        global $api;
+        static $warningsLogged = [];
+
+        $allOption = $api->config['intl']['translate']['instructions']['*'] ?? null;
+        $localOption = $api->config['intl']['translate']['instructions'][$locale] ?? null;
+
+        $instructions = [];
+
+        foreach (array_filter([$allOption, $localOption]) as $option) {
+            if ($api->fs->isZolingaUri($option)) {
+                $path = $api->fs->toPath($option);
+                if ($path && is_readable($path)) {
+                    $instructions[] = trim(file_get_contents($path));
+                } else {
+                    // One time warning
+                    if (!in_array($option, $warningsLogged)) {
+                        $api->log->warning('i18n', "{$this->domain}/{$locale}: Instruction file not found or unreadable: $option");
+                        $warningsLogged[] = $option;
+                    }
+                }
+            } elseif (!empty(trim($option))) {
+                $instructions[] = trim($option);
+            }
+        }
+
+        return implode("\n", $instructions);
     }
 
     /**
@@ -91,9 +145,9 @@ class Autotranslate extends GettextAbstract
         global $api;
 
         $contextMain =
-            ltrim(($api->config['intl']['translate']['instructions']['*'] ?? '') . "\n") .
-            ltrim(($api->config['intl']['translate']['instructions'][$locale] ?? '') . "\n") .
+            $this->getInstructionGlobalConfig($locale) .
             ($entry->isPlural ? $this->buildPluralContext($po, $entry) : '');
+
         $retries = 7;
         $instructions = [];
 
@@ -230,7 +284,8 @@ class Autotranslate extends GettextAbstract
         $api->log->log(
             $instructions ? SeverityEnum::WARNING : SeverityEnum::INFO, 
             'i18n', 
-            "✨ Translation: \n$icon Original: $original \n$icon Translat: $translated \nIssues: " . ($instructions ? implode(" ", $instructions) :  'none')
+            "✨ Translation: \n$icon Original: $original \n$icon Translat: $translated" . 
+            ($instructions ? " \n🚨 Issues: " . implode(" ", $instructions) :  '')
         );
 
         return $instructions; 
