@@ -174,7 +174,7 @@ When localizing an existing `.js` file, the **only** changes allowed are:
 - Change any existing code structure, logic, or formatting.
 - Add or remove blank lines around imports.
 - Modify any non-translation-related code.
-- Add hashes to `gettext` attributes in HTML — hashes are auto-generated.
+- Do not add hashes to `gettext` attributes in HTML — hashes are auto-generated.
 
 The goal is minimal diff: only the import path, the gettext import line, and wrapping of translatable strings.
 

@@ -435,7 +435,7 @@ class GettextPoFile
         $msgstr = [];
 
         // Collect comment lines
-        while ($i < $n && $lines[$i][0] === '#') {
+        while ($i < $n && $lines[$i] ?? null && $lines[$i][0] === '#') {
             $comments[] = $lines[$i++];
         }
 
