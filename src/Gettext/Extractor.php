@@ -29,12 +29,23 @@ class Extractor extends GettextAbstract
     public function extract(): void
     {
         global $api;
-        $api->log->info('i18n', "📦 Extracting gettext strings from {$this->domain->name} for locales: " . implode(', ', $this->locales));
-        $this->extractServerPotFile();
-        $this->extractClientPotFile();
-        $this->extractStaticPotFile();
-        if ($this->mergePotFiles()) {
-            $this->generateLanguagePoFiles();
+        $lock = "extract:{$this->domain}";
+        try {
+            if ($api->registry->acquireLock($lock)) {
+                $api->log->info('i18n', "📦 Extracting gettext strings from {$this->domain->name} for locales: " . implode(', ', $this->locales));
+                $this->extractServerPotFile();
+                $this->extractClientPotFile();
+                $this->extractStaticPotFile();
+                if ($this->mergePotFiles()) {
+                    $this->generateLanguagePoFiles();
+                }
+            } else {
+                $api->log->info('i18n', "{$this->domain}: 🔒Already being extracted by another process, skipping.");
+            }
+        } catch (\Throwable $e) {
+            $api->log->error('i18n', "{$this->domain}: Extraction failed with error: " . $e->getMessage());
+        } finally {
+            $api->registry->releaseLock($lock);
         }
     }
 

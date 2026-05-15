@@ -27,12 +27,22 @@ class Compiler extends GettextAbstract
     public function compile(): void
     {
         global $api;
-
-        $api->log->info('i18n', "📦 Compiling gettext strings in {$this->domain->name} for locales: " . implode(', ', $this->locales));
-        $this->compileLanguagePoFiles();
-        $this->compileStaticPoFiles();
-        $api->locale->initGettext('.static');
-        $this->translateHtmlFiles();
+        $lock = "compile:{$this->domain}";
+        try {
+            if ($api->registry->acquireLock($lock)) {
+                $api->log->info('i18n', "📦 Compiling gettext strings in {$this->domain->name} for locales: " . implode(', ', $this->locales));
+                $this->compileLanguagePoFiles();
+                $this->compileStaticPoFiles();
+                $api->locale->initGettext('.static');
+                $this->translateHtmlFiles();
+            } else {
+                $api->log->info('i18n', "{$this->domain}: 🔒Already being compiled by another process, skipping.");
+            }
+        } catch (\Throwable $e) {
+            $api->log->error('i18n', "{$this->domain}: Compilation failed with error: " . $e->getMessage());
+        } finally {
+            $api->registry->releaseLock($lock);
+        }
     }
 
     /**
