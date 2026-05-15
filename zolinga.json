@@ -1,6 +1,6 @@
 {
     "name": "Zolinga Internationalization",
-    "version": "2.4",
+    "version": "2.5.1",
     "description": "Provides internationalization support for Zolinga applications.",
     "authors": [
         "Daniel Sevcik <danny@zolinga.net>"
@@ -85,9 +85,25 @@
             "origin": [
                 "cli"
             ]
+        },
+        {
+            "description": "Handles <language-selector/> content tag to render a language switcher.",
+            "event": "cms:content:language-selector",
+            "class": "Zolinga\\Intl\\LanguageSelectorListener",
+            "method": "handle",
+            "origin": [
+                "internal"
+            ]
         }
     ],
     "emit": [],
+    "webComponents": [
+        {
+            "tag": "language-selector",
+            "description": "Language selector with popup.",
+            "module": "web-components/language-selector/language-selector.js"
+        }
+    ],
     "autoload": {
         "Zolinga\\Intl\\": "src/"
     },

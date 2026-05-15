@@ -1,0 +1,74 @@
+/* Language Selector Web Component Styles */
+
+language-selector {
+    display: inline-block;
+    cursor: pointer;
+    position: relative;
+    anchor-name: --ls;
+    anchor-scope: --ls;
+    user-select: none;
+}
+
+language-selector::before {
+    content: "\1F310\FE0E";
+    font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "Apple Symbols", sans-serif;
+    font-size: 1.2em;
+    text-align: center;
+    padding-right: 0.16em;
+}
+
+language-selector::after {
+    content: attr(data-curr-name);
+}
+
+/* Popup — fallback for old browsers: positioned above the element */
+.language-popup[open] {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    min-width: 160px;
+    display: flex;
+    flex-flow: column wrap;
+    align-content: stretch;
+    max-height: 90vh;
+    max-width: 90vw;
+    height: fit-content;
+    width: fit-content;
+}
+
+/* Modern browsers: CSS anchor positioning */
+@supports (anchor-name: --ls) {
+    .language-popup[open] {
+        inset: auto;
+        position: fixed;
+        position-anchor: --ls;
+        position-area: bottom span-right;
+        position-try-fallbacks: flip-block, flip-inline;
+        margin: 4px 0 0 0;
+    }
+}
+
+.language-popup .language {
+    padding: 8px 16px;
+    cursor: pointer;
+    white-space: nowrap;
+    color: #333;
+    font-size: 0.95em;
+    text-decoration: none;
+    min-height: 3em;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    break-inside: avoid;
+}
+
+.language-popup .language:hover {
+    background: #f0f0f0;
+}
+
+.language-popup .language.current {
+    font-weight: bold;
+    color: #000;
+    background: #f8f8f8;
+}

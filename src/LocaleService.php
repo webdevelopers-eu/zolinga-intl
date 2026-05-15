@@ -13,11 +13,11 @@ use const Zolinga\System\ROOT_DIR;
 /**
  * Language and gettext service.
  * 
- * @property string|null $tag The current language tag selected and canonicalized from $api->config['intl']['locales'].
- * @property string|null $locale The locale code from the current language tag in format language_REGION.
- * @property string|null $jsLocale The locale code from the current language tag in format language-REGION.
- * @property string|null $lang The primary language code from the current language tag.
- * @property-read string|null $region The region code from the current language tag.
+ * @property string|null $tag The current language tag selected and canonicalized from $api->config['intl']['locales']. E.g. 'en_US@currency=USD'.
+ * @property string|null $locale The locale code from the current language tag in format language_REGION. E.g. 'en_US'.
+ * @property string|null $jsLocale The locale code from the current language tag in format language-REGION. E.g. 'en-US'.
+ * @property string|null $lang The primary language code from the current language tag. E.g. 'en'.
+ * @property-read string|null $region The region code from the current language tag. E.g. 'US'.
  * 
  * @author Daniel Sevcik <danny@zolinga.net>
  * @date 2024-03-15
@@ -197,6 +197,47 @@ class LocaleService implements ServiceInterface
         $try = preg_replace('/(\.[a-z]+)$/', ".{$lang}\\1", $file);
         $file = file_exists($try) ? $try : $file;
         return $file;
+    }
+
+    /**
+     * Get localized URLs for the current request path across all supported languages.
+     * 
+     * Returns an array mapping each supported tag to its localized URL.
+     * The current path has its leading language segment replaced with each supported language.
+     * 
+     * Example:
+     * 
+     *   // Current URL: /en/contact?foo=bar
+     *   $urls = $api->locale->getLocalizedUrls();
+     *   // ['en_US' => '/en/contact?foo=bar', 'cs_CZ' => '/cs/contact?foo=bar', 'de_DE' => '/de/contact?foo=bar']
+     *
+     * @param string|null $path Path to localize (defaults to current REQUEST_URI)
+     * @return array<string, string> Map of tag => localized URL
+     */
+    public function getLocalizedUrls(?string $path = null): array
+    {
+        $currentUri = $path ?? $_SERVER['REQUEST_URI'] ?? '/';
+        $currentPath = parse_url($currentUri, PHP_URL_PATH) ?: '/';
+        $currentQuery = parse_url($currentUri, PHP_URL_QUERY) ?: '';
+
+        // Remove leading language segment from path
+        $pathWithoutLang = preg_replace(
+            '#^/' . preg_quote($this->lang, '#') . '(?=/|$)#',
+            '',
+            $currentPath
+        ) ?: '/';
+
+        $urls = [];
+        foreach ($this->supportedTags as $tag) {
+            $langCode = Locale::getPrimaryLanguage($tag);
+            $link = '/' . $langCode . $pathWithoutLang;
+            if ($currentQuery) {
+                $link .= '?' . $currentQuery;
+            }
+            $urls[$tag] = $link;
+        }
+
+        return $urls;
     }
 
     public function __get(string $name): ?string
