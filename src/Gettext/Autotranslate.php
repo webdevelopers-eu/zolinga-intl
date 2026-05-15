@@ -39,7 +39,7 @@ class Autotranslate extends GettextAbstract
                 if ($api->registry->acquireLock($lock)) {
                     $this->autotranslateLocale($locale);
                 } else {
-                    $api->log->info('i18n', "{$this->domain}/{$locale}: Already being autotranslated by another process, skipping.");
+                    $api->log->info('i18n', "{$this->domain}/{$locale}: 🔒Already being autotranslated by another process, skipping.");
                 }
             } catch (\Throwable $e) {
                 global $api;

@@ -30,6 +30,10 @@ bin/zolinga autotranslate --all
 
 All request parameters (`--domains`, `--all`, etc.) are forwarded to each sub-event unchanged.
 
+## Parallel Execution
+
+You can run multiple `bin/zolinga autotranslate` processes at the same time. The underlying `gettext:autotranslate` step locks per domain and locale, so parallel runs are safe and useful when translating more than one module+language combination. Keep the AI translator `concurrency` setting in `config/global.json` in mind so you do not overwhelm the backend.
+
 ## Request Parameters
 
 | Parameter | Type   | Description                                      |

@@ -29,6 +29,22 @@ When no `--domains` option is provided, the command autotranslates all domains.
 
 If the process is interrupted (e.g. network error, crash), the `.po.autotranslate` file preserves all completed translations. Running the command again will pick up where it left off.
 
+## Parallel Execution
+
+You can run multiple `bin/zolinga gettext:autotranslate` processes simultaneously. Each process acquires a per-domain-and-locale lock (`autotranslate:{domain}:{locale}`), so parallel execution is safe and only makes sense when you have more than one domain+locale combination to translate.
+
+The AI translator backend has a `concurrency` setting in `config/global.json` (for example, under `ai.backends.translator.concurrency`) that controls how many simultaneous translation requests the service handles. As long as that limit supports it, running multiple CLI instances speeds up the overall workflow.
+
+Example — translate in parallel:
+
+```bash
+# Terminal 1
+bin/zolinga gettext:autotranslate --all
+
+# Terminal 2
+bin/zolinga gettext:autotranslate --all
+```
+
 ## Requirements
 
 - The `$api->translator` service must be available (provided by `zolinga-intl`).

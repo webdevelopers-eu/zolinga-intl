@@ -48,7 +48,7 @@ The translation workflow consists of the following steps
 - **Translating the strings**
   - You need to translate untranslated strings in the `{MODULE}/locale/*.po` files. You can use any text editor or a specialized translation tool like [Poedit](https://poedit.net/).
   - Alternatively, use the AI autotranslate command: `bin/zolinga gettext:autotranslate --domains={DOMAINS}`. This sends untranslated entries to the AI translator and fills them in automatically. See [Gettext Autotranslate](:ref:event/gettext/autotranslate) for details.
-  - Alternatively, use the AI autotranslate command: `bin/zolinga gettext:autotranslate --domains={DOMAINS}`. This sends untranslated entries to the AI translator and fills them in automatically. See [Gettext Autotranslate](:ref:event/gettext/autotranslate) for details.
+  - You can run multiple autotranslate processes in parallel (e.g. one per domain+locale) as long as the AI translator `concurrency` setting in `config/global.json` allows it. Each process locks per domain+locale, so parallel execution is safe.
 
   ## Autotranslate instruction files
 
