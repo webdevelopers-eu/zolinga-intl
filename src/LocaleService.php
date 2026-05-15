@@ -334,15 +334,24 @@ class LocaleService implements ServiceInterface
      */
     private function initCurrentLanguage(): void
     {
-        $preferredTag =
-            $_COOKIE['lang'] ??
-            $_SESSION['lang'] ??
-            Locale::acceptFromHttp($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? $this->supportedTags[0]) ?:
-            $this->supportedTags[0] or
-            throw new \Exception("The language tag is missing in the configuration file zolinga.json's intl.locales values.");
+        $header = array_filter(array_map(
+            fn ($part) => Locale::getPrimaryLanguage($part), 
+            explode(',', $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '')
+        ));
 
-        $selectedTag = Locale::lookup($this->supportedTags, $preferredTag, false, $this->supportedTags[0]);
-        $this->setTag($selectedTag);
+        $preferredTag = array_filter([
+            $_COOKIE['lang'] ?? null,
+            $_SESSION['lang'] ?? null,
+            ...$header
+        ]);
+
+        $match = null;
+        foreach ($preferredTag as $lang) {
+            $match = array_find($this->supportedTags, fn ($tag) => Locale::filterMatches($tag, $lang, true));
+            if ($match) break;
+        }
+
+        $this->setTag($match ?: $this->supportedTags[0] ?? throw new \Exception("No supported locales configured. Check intl.locales in zolinga.json."));
     }
 
     /**
