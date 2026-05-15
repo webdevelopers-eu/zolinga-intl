@@ -29,11 +29,24 @@ class Autotranslate extends GettextAbstract
      */
     public function autotranslate(): void
     {
+        global $api;
         foreach ($this->locales as $locale) {
             if ($locale === 'en_US') {
                 continue;
             }
-            $this->autotranslateLocale($locale);
+            $lock = "autotranslate:{$this->domain}:{$locale}";
+            try {
+                if ($api->registry->acquireLock($lock)) {
+                    $this->autotranslateLocale($locale);
+                } else {
+                    $api->log->info('i18n', "{$this->domain}/{$locale}: Already being autotranslated by another process, skipping.");
+                }
+            } catch (\Throwable $e) {
+                global $api;
+                $api->log->error('i18n', "{$this->domain}/{$locale}: Autotranslation failed with error: " . $e->getMessage());
+            } finally {
+                $api->registry->releaseLock($lock);
+            }
         }
     }
 
