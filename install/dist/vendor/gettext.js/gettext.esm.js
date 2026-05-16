@@ -167,9 +167,15 @@ var i18n = function (options) {
         if (!_.isObject(jsonData))
           jsonData = JSON.parse(jsonData);
    
-        if (!jsonData[''] || !jsonData['']['language'] || !jsonData['']['plural-forms'])
+
+
+        if (!jsonData[''] || !jsonData['']['language'])
           throw new Error('Wrong JSON, it must have an empty key ("") with "language" and "plural-forms" information');
    
+        // Default trivial rule for zh_CN etc. does not need to be filled in:
+        if (!jsonData['']['plural-forms']) 
+          jsonData['']['plural-forms'] = "Plural-Forms: nplurals=1; plural=0;\n";
+
         var headers = jsonData[''];
         delete jsonData[''];
    

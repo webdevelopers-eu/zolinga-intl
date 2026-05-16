@@ -349,9 +349,12 @@ class GettextPoFile
                 $this->header[trim($h[1])] = trim($h[2]);
             }
         }
-        if (isset($this->header['Plural-Forms'])) {
-            $this->parsePluralForms($this->header['Plural-Forms']);
+
+        if (!isset($this->header['Plural-Forms'])) {
+            // This is default if not specified (e.g. for zh_CN), and gettext.js relies on it being present, so we add it here for consistency.
+            $this->header['Plural-Forms'] = "Plural-Forms: nplurals=1; plural=0;";
         }
+        $this->parsePluralForms($this->header['Plural-Forms']);
     }
 
     /**
