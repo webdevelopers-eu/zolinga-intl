@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Zolinga\Intl\Gettext;
 
 use Zolinga\Intl\Models\GettextDocument;
+use Zolinga\Intl\Types\DirRtlLanguagesEnum;
 use Zolinga\Intl\Types\FileTypes;
 use Zolinga\Intl\Types\GettextModeEnum;
 
@@ -200,6 +201,13 @@ class Compiler extends GettextAbstract
         } catch (\Exception $e) {
             $api->log->error('i18n', "Error translating $sourceFile to $locale: " . $e->getMessage());
             return;
+        }
+
+        // Directionality
+        if (DirRtlLanguagesEnum::isRtl($locale)) {
+            $jsLang = str_replace('_', '-', $locale);
+            $targetDoc->documentElement->setAttribute('lang', $jsLang);
+            $targetDoc->documentElement->setAttribute('dir', 'rtl');
         }
 
         $targetDoc->encoding = 'UTF-8';
