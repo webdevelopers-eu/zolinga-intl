@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Zolinga\Intl\Gettext;
 
+use Zolinga\Intl\Exceptions\TranslationException;
 use Zolinga\Intl\GettextPoParser\GettextPoEntry;
 use Zolinga\Intl\GettextPoParser\GettextPoFile;
 use Zolinga\Intl\Types\GettextTemplateEnum;
@@ -172,14 +173,16 @@ class Autotranslate extends GettextAbstract
 
                 if (!empty($newInstructions)) {
                     $instructions = array_unique(array_merge($instructions, $newInstructions));
-                    throw new \Exception("Translation failed with " . count($newInstructions) . " issues.");
+                    throw new TranslationException("Translation failed with " . count($newInstructions) . " issues.", $instructions);
                 }
 
                 $entry->translate($translatedEntry->msgstr);
                 $po->save($autoPath);
                 return;
+            } catch (TranslationException $e) {
+                $api->log->warning('i18n', "{$this->domain}/{$locale}: Translation issues for entry '{$entry->msgid}': " . $e->getMessage() . " Retrying with instructions: " . implode(" ", $e->issues));
             } catch (\Throwable $e) {
-                $api->log->error('i18n', "{$this->domain}/{$locale}: Failed to translate entry '{$entry->msgid}': " . $e->getMessage());
+                $api->log->error('i18n', "{$this->domain}/{$locale}: Failed to translate entry '{$entry->msgid}': " . $e->getMessage() . ', trace ' . $e->getTraceAsString());
             }
         } while ($retries-- > 0 && !$entry->isTranslated);
 
