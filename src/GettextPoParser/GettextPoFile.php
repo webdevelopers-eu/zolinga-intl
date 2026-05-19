@@ -403,8 +403,8 @@ class GettextPoFile
      */
     private function generatePluralCountExamples(int $count = 3): array
     {
-        if (!is_int($this->nplurals) || !$this->plural) {
-            throw new \RuntimeException("Plural-Forms header is missing or invalid: $this->");
+        if (!is_int($this->nplurals) || !strlen($this->plural ?? '')) {
+            throw new \RuntimeException("Plural-Forms header is missing or invalid: $this");
         }
 
         $examples = array_fill(0, $this->nplurals, []);
