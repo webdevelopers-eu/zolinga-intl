@@ -40,6 +40,8 @@ class GettextPoFile
     /** Header fields (Project-Id-Version, Language, Plural-Forms, ...). */
     public private(set) array $header = [];
 
+    public private(set) ?string $filePath = null;
+
     public ?string $lang {
         get => $this->locale ? \Locale::getPrimaryLanguage($this->locale) : null;
     }
@@ -149,7 +151,7 @@ class GettextPoFile
             throw new \RuntimeException("Cannot read: $path");
         }
         $self = new self();
-        $self->parse($content);
+        $self->parse($content, $path);
         return $self;
     }
 
@@ -316,13 +318,14 @@ class GettextPoFile
 
     // -- parser ---------------------------------------------------------------
 
-    public function parse(string $content): void
+    public function parse(string $content, ?string $path = null): void
     {
         $lines = preg_split('/\r\n|\r|\n/', $content) ?: [];
         $this->entries = [];
         $this->header = [];
         $this->nplurals = null;
         $this->plural = null;
+        $this->filePath = $path;
         $this->pluralCountExamples = null;
 
         $i = 0;
@@ -339,6 +342,11 @@ class GettextPoFile
                 }
                 $this->entries[] = $entry;
             }
+        }
+
+        if (!$this->header) {
+            $this->entries[] = new GettextPoEntry([], '', null, [''], 0);
+            $this->parseHeaderEntry($this->entries[0]);
         }
     }
 
@@ -393,10 +401,10 @@ class GettextPoFile
      *  
      * @return array|null
      */
-    private function generatePluralCountExamples(int $count = 3): ?array
+    private function generatePluralCountExamples(int $count = 3): array
     {
-        if (!$this->nplurals || !$this->plural) {
-            return null;
+        if (!is_int($this->nplurals) || !$this->plural) {
+            throw new \RuntimeException("Plural-Forms header is missing or invalid: $this->");
         }
 
         $examples = array_fill(0, $this->nplurals, []);
@@ -502,6 +510,11 @@ class GettextPoFile
             $i++;
         }
         return $s;
+    }
+
+    public function __toString(): string
+    {
+        return "🌐GettextPoFile[$this->filePath]";
     }
 }
 
