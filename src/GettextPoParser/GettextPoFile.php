@@ -68,10 +68,10 @@ class GettextPoFile
     }
 
     /** Number of plural forms from Plural-Forms header, null if unknown. */
-    public private(set) ?int $nplurals = null;
+    public private(set) int $nplurals = 1;
 
     /** Plural expression from Plural-Forms header, null if unknown. Example: "(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2" */
-    public private(set) ?string $plural = null;
+    public private(set) string $plural = '0';
 
     /**
      * Examples of n values for each plural form, generated from the plural expression. Max 3 examples per form. 
@@ -323,8 +323,8 @@ class GettextPoFile
         $lines = preg_split('/\r\n|\r|\n/', $content) ?: [];
         $this->entries = [];
         $this->header = [];
-        $this->nplurals = null;
-        $this->plural = null;
+        $this->nplurals = 1; // default if not specified
+        $this->plural = '0'; // default if not specified
         $this->filePath = $path;
         $this->pluralCountExamples = null;
 
@@ -343,11 +343,6 @@ class GettextPoFile
                 $this->entries[] = $entry;
             }
         }
-
-        if (!$this->header) {
-            $this->entries[] = new GettextPoEntry([], '', null, [''], 0);
-            $this->parseHeaderEntry($this->entries[0]);
-        }
     }
 
     private function parseHeaderEntry(GettextPoEntry $entry): void 
@@ -360,7 +355,7 @@ class GettextPoFile
 
         if (!trim($this->header['Plural-Forms'] ?? '')) {
             // This is default if not specified (e.g. for zh_CN), and gettext.js relies on it being present, so we add it here for consistency.
-            $this->header['Plural-Forms'] = "Plural-Forms: nplurals=1; plural=0;";
+            $this->header['Plural-Forms'] = "nplurals=1; plural=0;";
         }
         $this->parsePluralForms($this->header['Plural-Forms']);
     }
@@ -404,7 +399,7 @@ class GettextPoFile
     private function generatePluralCountExamples(int $count = 3): array
     {
         if (!is_int($this->nplurals) || !strlen($this->plural ?? '')) {
-            throw new \RuntimeException("Plural-Forms header is missing or invalid: $this");
+            throw new \RuntimeException("Plural-Forms header is missing or invalid: " . json_encode($this->header, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . " in file $this");
         }
 
         $examples = array_fill(0, $this->nplurals, []);
