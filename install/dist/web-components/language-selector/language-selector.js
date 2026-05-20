@@ -24,6 +24,8 @@ export default class LanguageSelector extends WebComponent {
 
     constructor() {
         super();
+        this.#updateStoredLanguages();
+        this.#updateLanguageOrder();
     }
 
     connectedCallback() {
@@ -36,6 +38,28 @@ export default class LanguageSelector extends WebComponent {
     disconnectedCallback() {
         super.disconnectedCallback?.();
         this.removeEventListener('click', () => this.#togglePopup());
+    }
+
+    #getStoredLangauges() {
+        const stored = localStorage.getItem('chosenLanguages') || '[]';
+        return JSON.parse(stored);
+    }
+
+    #updateStoredLanguages() {
+        const newLanguage = document.documentElement.lang;
+        const storedLanguages = this.#getStoredLangauges();
+        const updatedLanguages = [newLanguage, ...storedLanguages.filter(lang => lang !== newLanguage)];
+        localStorage.setItem('chosenLanguages', JSON.stringify(updatedLanguages));
+    }
+
+    #updateLanguageOrder() {
+        const storedLanguages = this.#getStoredLangauges();
+        storedLanguages.forEach(lang => {
+            const link = this.querySelector(`.language[data-locale="${lang}"]`);
+            if (link) {
+                link.style.order = storedLanguages.indexOf(lang) - storedLanguages.length;
+            }
+        });
     }
 
     #togglePopup(state) {

@@ -50,7 +50,7 @@ class LanguageSelectorListener implements ListenerInterface
         ]);
         $box->appendChild($list);
 
-        foreach ($localeService->supportedTags as $tag) {
+        foreach ($localeService->supportedLangs as $tag => $lang) {
             $langName = $localeService->supportedLangNames[$tag];
             $langNameEn = Locale::getDisplayLanguage($tag, 'en_US');
             $jsLocale = str_replace('_', '-', $localeService->supportedLocales[$tag]);
@@ -60,6 +60,7 @@ class LanguageSelectorListener implements ListenerInterface
                 'class' => 'language' . ($isCurrent ? ' current' : ''),
                 'href' => $urls[$tag],
                 'data-locale' => $jsLocale,
+                'data-lang' => $lang,
                 'data-name' => $langName,
                 'data-name-en' => $langNameEn,
             ]);
