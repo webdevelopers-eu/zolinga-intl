@@ -33,12 +33,19 @@ export default class LanguageSelector extends WebComponent {
         this.ready();
     }
 
+    disconnectedCallback() {
+        super.disconnectedCallback?.();
+        this.removeEventListener('click', () => this.#togglePopup());
+    }
+
     #togglePopup(state) {
         if (!this.#popup) return;
 
         if (this.#popup.matches('[open]')) {
             this.#popup.removeAttribute('open');
+            this.#popup.setAttribute('hidden', 'true');
         } else {
+            this.#popup.removeAttribute('hidden');
             this.#popup.setAttribute('open', '');
         }
     }

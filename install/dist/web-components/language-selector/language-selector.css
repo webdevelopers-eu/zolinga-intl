@@ -52,7 +52,7 @@ language-selector::after {
     flex-wrap: wrap;
     max-height: min(100dvh, 560px);
     max-width: min(100dvw, 640px);
-    padding: 2em;
+    padding: 1em;
 }
 
 .language-list .language {
