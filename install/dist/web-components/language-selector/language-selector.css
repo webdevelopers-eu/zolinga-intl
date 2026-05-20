@@ -27,14 +27,13 @@ language-selector::after {
     border: 1px solid #ddd;
     border-radius: 6px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    min-width: 160px;
-    display: flex;
-    flex-flow: column wrap;
-    align-content: stretch;
-    max-height: 90vh;
-    max-width: 90vw;
-    height: fit-content;
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(auto-fill, minmax(3em, 1fr));
     width: fit-content;
+    align-content: stretch;
+    max-height: min(100dvh, 640px);
+    max-width: min(100dvw, 640px);
 }
 
 /* Modern browsers: CSS anchor positioning */
@@ -43,9 +42,8 @@ language-selector::after {
         inset: auto;
         position: fixed;
         position-anchor: --ls;
-        position-area: bottom span-right;
+        position-area: top center;
         position-try-fallbacks: flip-block, flip-inline;
-        margin: 4px 0 0 0;
     }
 }
 
@@ -61,6 +59,7 @@ language-selector::after {
     flex-direction: column;
     align-items: center;
     break-inside: avoid;
+    width: fit-content;
 }
 
 .language-popup .language:hover {
