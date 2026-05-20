@@ -37,9 +37,9 @@ export default class LanguageSelector extends WebComponent {
         if (!this.#popup) return;
 
         if (this.#popup.matches('[open]')) {
-            this.#popup.close();
+            this.#popup.removeAttribute('open');
         } else {
-            this.#popup.showModal();
+            this.#popup.setAttribute('open', '');
         }
     }
 

@@ -37,10 +37,17 @@ class LanguageSelectorListener implements ListenerInterface
             'data-curr-name' => $localeService->supportedLangNames[$locale] ?? $locale,
             'data-curr-name-en' => Locale::getDisplayLanguage($locale, 'en_US'),
         ]);
+        $event->output->appendChild($el);
 
-        $list = $this->createElement($doc, 'dialog', [
-            'class' => 'language-popup',
+        $box = $this->createElement($doc, 'div', [
+            'class' => 'language-popup'            
         ]);
+        $el->appendChild($box);
+
+        $list = $this->createElement($doc, 'div', [
+            'class' => 'language-list',
+        ]);
+        $box->appendChild($list);
 
         foreach ($localeService->supportedTags as $tag) {
             $langName = $localeService->supportedLangNames[$tag];
@@ -61,9 +68,6 @@ class LanguageSelectorListener implements ListenerInterface
             $item->appendChild($span);
             $list->appendChild($item);
         }
-
-        $el->appendChild($list);
-        $event->output->appendChild($el);
 
         $event->setStatus($event::STATUS_OK, 'Language selector rendered');
     }

@@ -20,20 +20,15 @@ language-selector::before {
 language-selector::after {
     content: attr(data-curr-name);
 }
-
+.language-popup:not([open]) {
+    display: none !important;
+}
 /* Popup — fallback for old browsers: positioned above the element */
 .language-popup[open] {
-    background: #fff;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    display: grid;
-    grid-auto-flow: column;
-    grid-template-rows: repeat(auto-fill, minmax(3em, 1fr));
-    width: fit-content;
-    align-content: stretch;
-    max-height: min(100dvh, 640px);
-    max-width: min(100dvw, 640px);
+    background: transparent;
+    border: none;
+    padding: 0px;
+    margin: 0px;
 }
 
 /* Modern browsers: CSS anchor positioning */
@@ -42,12 +37,25 @@ language-selector::after {
         inset: auto;
         position: fixed;
         position-anchor: --ls;
-        position-area: top center;
+        position-area: top span-all;
+        width: -moz-available;
         position-try-fallbacks: flip-block, flip-inline;
     }
 }
 
-.language-popup .language {
+.language-list {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    max-height: min(100dvh, 560px);
+    max-width: min(100dvw, 640px);
+    padding: 2em;
+}
+
+.language-list .language {
     padding: 8px 16px;
     cursor: pointer;
     white-space: nowrap;
