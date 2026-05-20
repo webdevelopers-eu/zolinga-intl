@@ -220,16 +220,11 @@ class LocaleService implements ServiceInterface
         $currentPath = parse_url($currentUri, PHP_URL_PATH) ?: '/';
         $currentQuery = parse_url($currentUri, PHP_URL_QUERY) ?: '';
 
-        // Remove leading language segment from path
-        $pathWithoutLang = preg_replace(
-            '#^/' . preg_quote($this->lang, '#') . '(?=/|$)#',
-            '',
-            $currentPath
-        ) ?: '/';
+        $pathWithoutLang = $this->stripLangFromUrlPath($currentPath);
 
         $urls = [];
         foreach ($this->supportedTags as $tag) {
-            $langCode = Locale::getPrimaryLanguage($tag);
+            $langCode = \Locale::getPrimaryLanguage($tag);
             $link = '/' . $langCode . $pathWithoutLang;
             if ($currentQuery) {
                 $link .= '?' . $currentQuery;
@@ -238,6 +233,25 @@ class LocaleService implements ServiceInterface
         }
 
         return $urls;
+    }
+
+    /**
+     * Remove leading language segment from a URL path if it matches any of the supported languages.
+     * 
+     * Example:
+     * 
+     *  $api->locale->stripLangFromUrlPath('/en/contact'); // returns '/contact' if 'en' is a supported language
+     *
+     * @param string $url
+     * @return string
+     */
+    public function stripLangFromUrlPath(string $url): string
+    {
+        return preg_replace(
+            '#^/(' . implode('|', $this->supportedLangs) . ')(?=/|$)#',
+            '',
+            $url
+        ) ?: '/';
     }
 
     public function __get(string $name): ?string
