@@ -2,8 +2,8 @@
 
 You may choose to generate static translations of your static HTML resources. This is very useful for more complex HTML resources with a lot of text.
 
-To do this, you can need to mark the HTML file for translation and then run the `bin/zolinga gettext:extract` command to extract the translatable strings from the HTML file.
-Translate the strings and then run the `bin/zolinga gettext:compile` command to generate translated HTML files.
+To do this, you need to mark the HTML file for translation and then run the `bin/zolinga gettext:extract` command to extract the translatable strings from the HTML file.
+Translate the strings and then run the `bin/zolinga gettext:compile` command to generate translated HTML files. If you have configured the [zolinga-ai](https://github.com/webdevelopers-eu/zolinga-ai/) integration, you can also use the `bin/zolinga autotranslate` command to automatically executes all three steps in one go: extract, auto-translate using AI, and compile.
 
 # Why?
 
