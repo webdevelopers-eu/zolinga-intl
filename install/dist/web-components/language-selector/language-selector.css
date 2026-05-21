@@ -20,11 +20,9 @@ language-selector::before {
 language-selector::after {
     content: attr(data-curr-name);
 }
-.language-popup:not([open]) {
-    display: none !important;
-}
+
 /* Popup — fallback for old browsers: positioned above the element */
-.language-popup[open] {
+.language-popup {
     background: transparent;
     border: none;
     padding: 0px;
@@ -33,7 +31,7 @@ language-selector::after {
 
 /* Modern browsers: CSS anchor positioning */
 @supports (anchor-name: --ls) {
-    .language-popup[open] {
+    .language-popup {
         inset: auto;
         position: fixed;
         position-anchor: --ls;

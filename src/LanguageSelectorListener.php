@@ -41,6 +41,7 @@ class LanguageSelectorListener implements ListenerInterface
 
         $box = $this->createElement($doc, 'div', [
             'class' => 'language-popup',
+            'popover' => 'auto',
             'hidden' => 'true',
         ]);
         $el->appendChild($box);

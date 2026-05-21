@@ -65,13 +65,8 @@ export default class LanguageSelector extends WebComponent {
     #togglePopup(state) {
         if (!this.#popup) return;
 
-        if (this.#popup.matches('[open]')) {
-            this.#popup.removeAttribute('open');
-            this.#popup.setAttribute('hidden', 'true');
-        } else {
-            this.#popup.removeAttribute('hidden');
-            this.#popup.setAttribute('open', '');
-        }
+        this.#popup.removeAttribute('hidden');
+        this.#popup.togglePopover();
     }
 
     #handleClickOutside(e) {

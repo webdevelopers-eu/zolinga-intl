@@ -1,6 +1,6 @@
 {
     "name": "Zolinga Internationalization",
-    "version": "2.5.4",
+    "version": "2.5.5",
     "description": "Provides internationalization support for Zolinga applications.",
     "authors": [
         "Daniel Sevcik <danny@zolinga.net>"
