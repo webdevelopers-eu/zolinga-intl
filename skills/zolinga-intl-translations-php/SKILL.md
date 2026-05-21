@@ -1,6 +1,6 @@
 ---
 name: zolinga-intl-translations-php
-description: Use when writing PHP code that needs localized strings. Covers dgettext, dngettext, context separator, and static analysis constraints.
+description: Use when writing PHP code that needs localized strings. Covers dgettext, dngettext, context separator, enum label convention, and static analysis constraints.
 argument-hint: "<module-name>"
 ---
 
@@ -45,12 +45,26 @@ echo sprintf(dngettext('my-module', 'One apple', '%d apples', $count), $count);
 
 ## Context Separator
 
-When the same English word needs different translations in different contexts, append `"\x04"` before the message:
+When the same English word needs different translations in different contexts, prepend the context and `"\x04"` to the message:
 
 ```php
 echo dgettext('my-module', "Confirm form submission\x04Send");
 echo dgettext('my-module', "Email transmission\x04Send");
 ```
+
+## Enum Labels — MUST Use Class Name as Context
+
+For any PHP `enum` that returns user-facing labels via `dgettext()`, the msgid **MUST** be prefixed with `EnumClassName\x04`. This disambiguates short labels (e.g. "Draft", "Pending") that appear across multiple enums.
+
+```php
+// BAD — no context, translator cannot tell which "Active" this is
+self::SUBSCRIBED => dgettext('ipdefender-base', 'Active Subscription'),
+
+// GOOD — enum class name provides unambiguous context
+self::SUBSCRIBED => dgettext('ipdefender-base', "AccountStatusEnum\x04Active Subscription"),
+```
+
+Migrate existing enums by adding the `EnumName\x04` prefix to all `dgettext()` calls inside them. After the change, re-run extraction.
 
 ## Translator Comments
 
@@ -62,12 +76,18 @@ echo dgettext('my-module', 'Start Your Free Trial');
 
 // TRANSLATORS: "Send" here refers to sending an email
 echo dgettext('my-module', "Email transmission\x04Send");
+
+// TRANSLATORS: Label used when an invoice has no end date — shown in the invoice list as 'ongoing'.
+echo dgettext('my-module', "InvoiceStatusEnum\x04Ongoing");
 ```
 
-The comment must:
-- Start with `TRANSLATORS:` (case-sensitive, singular form for PHP/JS)
-- Be placed immediately before the gettext call
+Rules for translator comments:
+- Start with `TRANSLATORS:` (case-sensitive)
+- Placed immediately before the gettext call
 - Use standard PHP comment syntax (`//` or `#`)
+- Write each comment as a self-contained sentence — do not say "Same as above" or "See above"
+- Include information about placeholders (e.g. `%s`, `%d`) and what they represent
+- Mention where the string appears in the UI if helpful
 
 Multiple comments can be used and will be concatenated in the `.po` file.
 
