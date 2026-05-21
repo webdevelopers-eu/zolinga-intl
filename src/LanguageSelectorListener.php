@@ -50,6 +50,8 @@ class LanguageSelectorListener implements ListenerInterface
             'class' => 'language-list',
         ]);
         $box->appendChild($list);
+        $items = [];
+        $trans = \Transliterator::create('Any-Latin; Latin-ASCII');
 
         foreach ($localeService->supportedLangs as $tag => $lang) {
             $langName = $localeService->supportedLangNames[$tag];
@@ -69,9 +71,11 @@ class LanguageSelectorListener implements ListenerInterface
             $span = $doc->createElement('span');
             $span->textContent = $langName;
             $item->appendChild($span);
-            $list->appendChild($item);
+            $items[$trans->transliterate($langName) . ' ' . $langName] = $item;
         }
 
+        ksort($items, SORT_NATURAL | SORT_FLAG_CASE);
+        $list->append(...array_values($items));
         $event->setStatus($event::STATUS_OK, 'Language selector rendered');
     }
 
