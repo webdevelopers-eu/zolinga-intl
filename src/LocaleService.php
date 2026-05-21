@@ -135,6 +135,20 @@ class LocaleService implements ServiceInterface
      */
     public readonly array $supportedRegionNames;
 
+    /**
+     * The primary locale (first supported locale) in language_REGION format. E.g. 'en_US'.
+     */
+    public string $primaryLocale {
+        get { return array_values($this->supportedLocales)[0] ?? 'en_US'; }
+    }
+
+    /**
+     * The primary language code (first supported locale) E.g. 'en'.
+     */
+    public string $primaryLang {
+        get { return array_values($this->supportedLangs)[0] ?? 'en'; }
+    }
+
     public function __construct()
     {
         global $api;
