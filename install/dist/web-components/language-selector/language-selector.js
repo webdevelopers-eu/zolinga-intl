@@ -2,10 +2,11 @@ import WebComponent from '/dist/system/js/web-component.js';
 
 // Load component CSS
 const cssUrl = new URL('./language-selector.css?rev=' + (document.documentElement.dataset.revision ?? (new Date).getTime()) , import.meta.url);
-if (!document.querySelector(`link[href="${cssUrl.pathname}"]`)) {
+if (!document.querySelector(`link[href="${cssUrl.pathname}"], #language-selector-style`)) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = cssUrl.href;
+    link.setAttribute('id', 'language-selector-style');
     document.head.appendChild(link);
 }
 
