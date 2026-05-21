@@ -64,6 +64,10 @@ This creates `index.cs-CZ.html`, `index.fr-FR.html`, … next to the source file
 
 ---
 
+This `bin/zolinga autotranslate [--domains=domain,...] [--all]` (requires `zoliga-ai`) command executes all at once: `gettext:extract`, then `gettext:autotranslate`, then `gettext:compile`. Use it for a one-command update when you don't care about manually editing `.po` files.
+
+---
+
 ## Domain Prefix
 
 By default every translatable string belongs to the domain of the module that owns the HTML file. Use a `domain:keyword` prefix to override this per element:
