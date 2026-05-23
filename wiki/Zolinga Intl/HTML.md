@@ -70,15 +70,18 @@ This `bin/zolinga autotranslate [--domains=domain,...] [--all]` (requires `zolig
 
 ## Domain Prefix
 
-By default every translatable string belongs to the domain of the module that owns the HTML file. Use a `domain:keyword` prefix to override this per element:
+Every translatable string should have an explicit domain prefix. The domain is determined by where the HTML file lives:
+
+- Files in `modules/<module>/...` → use `<module>:keyword`
+- Files in `data/` or `public/` (outside any module) → use `default:keyword`
 
 ```html
-<h1 gettext=".">Belongs to this module's domain</h1>
+<h1 gettext="my-module:.">Belongs to my-module's domain</h1>
 <meta name="cms.title" content="My Page" gettext="default:content"/>
 <span gettext="other-module:.">Belongs to other-module's domain</span>
 ```
 
-The `default` domain is the built-in shared domain. Use it for strings in HTML files that live outside any module (e.g. in `data/` or `public/`):
+The `default` domain is the built-in shared domain for strings in HTML files that live outside any module (e.g. in `data/` or `public/`):
 
 ```bash
 bin/zolinga gettext:extract --domains=default
