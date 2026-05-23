@@ -73,12 +73,12 @@ Template variables:
 
 | Variable | Description |
 |---|---|
-| `{{SOURCE_LANG}}` | Display name of source language (e.g. "English") |
-| `{{SOURCE_CODE}}` | ISO code of source language (e.g. "en") |
-| `{{TARGET_LANG}}` | Display name of target language |
-| `{{TARGET_CODE}}` | ISO code of target language |
-| `{{CONTEXT}}` | Optional context string (prefixed with "Context: ") |
-| `{{TEXT}}` | The text to translate |
+| `\{{SOURCE_LANG}}` | Display name of source language (e.g. "English") |
+| `\{{SOURCE_CODE}}` | ISO code of source language (e.g. "en") |
+| `\{{TARGET_LANG}}` | Display name of target language |
+| `\{{TARGET_CODE}}` | ISO code of target language |
+| `\{{CONTEXT}}` | Optional context string (prefixed with "Context: ") |
+| `\{{TEXT}}` | The text to translate |
 
 ## AI Backend
 
