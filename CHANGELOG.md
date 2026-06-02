@@ -5,6 +5,18 @@ All notable changes to the Zolinga Intl module.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [2.6.0] — 2026-06-02
+
+### Changed
+- Translator now resolves its AI backend by capability using the language pair, e.g. `translate:en-cs`, instead of the legacy `translator` capability. Declare per-language capabilities on the AI backend (e.g. `["translate:en-cs", "translate:en-de"]`) and the translator will pick the best match.
+- `$api->translator->translate()` defaults its `ai` argument to `"translate:<fromLang>-<toLang>"`. Pass an explicit capability string/array to override.
+- `TranslateEvent` request defaults updated accordingly: `'ai' => 'translate:*'` (used when callers omit `ai`).
+
+### Added
+- `translateAsync()` now validates that the request includes `fromLang` and `toLang`, throwing `InvalidArgumentException` with a clear message when either is missing.
+
 ## [2.4] — 2026-05-12
 
 ### Added

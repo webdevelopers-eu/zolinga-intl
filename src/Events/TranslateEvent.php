@@ -62,7 +62,7 @@ class TranslateEvent extends RequestResponseEvent
     }
 
     private const REQUEST_DEFAULTS = [
-        'ai' => 'translator',
+        'ai' => 'translate:*',
         'fromLang' => 'en_US',
         'context' => null,
         'priority' => 0.5,

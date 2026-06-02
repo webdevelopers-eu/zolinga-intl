@@ -28,22 +28,27 @@ class TranslatorService implements ServiceInterface, ListenerInterface
      * Translate a string synchronously using AI.
      *
      * @param string $string The text to translate.
-     * @param string $fromLang Source language tag (e.g. "en_US").
-     * @param string $toLang Target language tag (e.g. "cs_CZ").
+     * @param string $fromLang Source language tag (e.g. "en_US"). Must be a valid ICU/CLDR locale.
+     * @param string $toLang Target language tag (e.g. "cs_CZ"). Must be a valid ICU/CLDR locale.
      * @param string|null $context Optional context to guide the translation.
-     * @param string $ai AI backend name to use. Default: "translator".
+     * @param string|null $ai AI capability (or array of) to use. Default: "translate:<from>-<to>" where each side is the primary language subtag (e.g. "translate:en-cs").
      * @return string The translated text.
+     * @throws \InvalidArgumentException If $fromLang or $toLang is not a valid locale tag.
      */
     public function translate(
         string $string,
         string $fromLang,
         string $toLang,
         ?string $context = null,
-        string $ai = 'translator',
+        ?string $ai = null,
         GettextTemplateEnum $template = GettextTemplateEnum::DEFAULT
     ): ?string {
         global $api;
 
+        $this->assertLocale($fromLang, 'fromLang');
+        $this->assertLocale($toLang, 'toLang');
+
+        $ai = $ai ?? $this->defaultCapability($fromLang, $toLang);
         $prompt = $this->buildPrompt($string, $fromLang, $toLang, $context, $template);
         $result = $api->ai->prompt($ai, $prompt);
 
@@ -65,10 +70,18 @@ class TranslatorService implements ServiceInterface, ListenerInterface
     {
         global $api;
 
+        $fromLang = $event->request['fromLang']
+            or throw new \InvalidArgumentException("translateAsync request is missing 'fromLang'.");
+        $toLang = $event->request['toLang']
+            or throw new \InvalidArgumentException("translateAsync request is missing 'toLang'.");
+
+        $this->assertLocale($fromLang, 'fromLang');
+        $this->assertLocale($toLang, 'toLang');
+
         $prompt = $this->buildPrompt(
             $event->request['string'],
-            $event->request['fromLang'],
-            $event->request['toLang'],
+            $fromLang,
+            $toLang,
             $event->request['context'] ?? '',
             $event->request['template'] ?? GettextTemplateEnum::DEFAULT,
         );
@@ -78,7 +91,7 @@ class TranslatorService implements ServiceInterface, ListenerInterface
             'i18n:translation:done',
             OriginEnum::INTERNAL,
             [
-                'ai' => $event->request['ai'] ?? 'translator',
+                'ai' => $event->request['ai'] ?? $this->defaultCapability($fromLang, $toLang),
                 'prompt' => $prompt,
                 'priority' => $event->request['priority'] ?? 0.5,
             ],
@@ -112,6 +125,44 @@ class TranslatorService implements ServiceInterface, ListenerInterface
         $translateEvent = TranslateEvent::fromArray(json_decode($callbackData, true));
         $translateEvent->response['data'] = $aiEvent->response['data'] ?? '';
         $translateEvent->dispatch();
+    }
+
+    /**
+     * Build the default AI capability for a language pair.
+     *
+     * Normalizes both tags to their primary language subtag so the matcher
+     * sees a short, locale-independent capability like "translate:en-cs"
+     * regardless of whether the caller passed "en_US" or "en".
+     *
+     * @param string $fromLang Source locale tag.
+     * @param string $toLang Target locale tag.
+     * @return string Capability string in the form "translate:<from>-<to>".
+     */
+    private function defaultCapability(string $fromLang, string $toLang): string
+    {
+        $from = Locale::getPrimaryLanguage($fromLang) ?: $fromLang;
+        $to = Locale::getPrimaryLanguage($toLang) ?: $toLang;
+        return "translate:$from-$to";
+    }
+
+    /**
+     * Validate that the given value is a well-formed ICU/CLDR locale tag.
+     *
+     * Rejects empty strings, locale strings containing characters outside the
+     * BCP 47 subset (letters, digits, and `-`/`_` separators), and strings
+     * that PHP's locale parser cannot parse.
+     *
+     * @param string $locale The locale tag to validate.
+     * @param string $field  The field name (used in the exception message).
+     * @throws \InvalidArgumentException If the tag is not a valid locale.
+     */
+    private function assertLocale(string $locale, string $field): void
+    {
+        if ($locale === '' || !preg_match('/^[A-Za-z]{2,3}(?:[_-][A-Za-z0-9]{2,4})*$/', $locale)) {
+            throw new \InvalidArgumentException(
+                "TranslatorService: '$field' must be a valid locale tag (e.g. 'en', 'en_US', 'zh-Hans-CN'), got: " . var_export($locale, true)
+            );
+        }
     }
 
     /**
