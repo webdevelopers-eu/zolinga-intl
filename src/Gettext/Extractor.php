@@ -85,7 +85,7 @@ class Extractor extends GettextAbstract
         $this->ensureTemplatesDir();
         // Write minimal header for idempotency (xgettext --join-existing needs existing file)
         $this->initPotFile($potFile);
-        $this->extractInBatches(FileTypes::PHP, $potFile, "--add-location -L PHP");
+        $this->extractInBatches(FileTypes::PHP, $potFile, "-L PHP");
         $this->fixPotfile($potFile);
     }
 
@@ -97,7 +97,7 @@ class Extractor extends GettextAbstract
         $potFile = $this->domain->clientPotFile;
         $this->ensureTemplatesDir();
         $this->initPotFile($potFile);
-        $this->extractInBatches(FileTypes::JAVASCRIPT, $potFile, "--add-location -L JavaScript --keyword=__ --keyword=_n:1,2");
+        $this->extractInBatches(FileTypes::JAVASCRIPT, $potFile, "-L JavaScript --keyword=__ --keyword=_n:1,2");
         $this->fixPotfile($potFile);
     }
 
