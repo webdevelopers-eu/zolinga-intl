@@ -368,14 +368,15 @@ class LocaleService implements ServiceInterface
             explode(',', $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '')
         ));
 
-        $preferredTag = array_filter([
-            $_COOKIE['lang'] ?? null,
-            $_SESSION['lang'] ?? null,
-            ...$header
+        $preferredTagByPriority = array_filter([
+            $_COOKIE['lang'] ?? null, // highest priority, can be set by JS
+            $_SESSION['lang'] ?? null, // can be set only by PHP
+            ...$header, // browser hints
+            $_ENV['LANG'] ?? null, // can be set in CLI, cron, or container environment
         ]);
 
         $match = null;
-        foreach ($preferredTag as $lang) {
+        foreach ($preferredTagByPriority as $lang) {
             $match = array_find($this->supportedTags, fn ($tag) => Locale::filterMatches($tag, $lang, true));
             if ($match) break;
         }
@@ -424,7 +425,7 @@ class LocaleService implements ServiceInterface
      * @param string $domainSuffix Optional suffix for domain names (e.g. '.static' for HTML translation)
      * @return void
      */
-    public function initGettext(string $domainSuffix = ''): void
+    public function initGettext(string $domainSuffix = '', bool $reload = false): void
     {
         global $api;
 
@@ -432,24 +433,14 @@ class LocaleService implements ServiceInterface
         $this->setLocaleEnv();
 
         // Domain binding is idempotent; only do it once per instance per suffix.
-        if (isset($this->domainsInitialized[$domainSuffix])) {
+        if (isset($this->domainsInitialized[$domainSuffix]) && !$reload) {
             return;
         }
         $this->domainsInitialized[$domainSuffix] = true;
 
         // 1. Module domains (from manifest)
         foreach ($api->manifest->moduleNames as $moduleName) {
-            $localePath = $api->fs->toPath("module://$moduleName") . '/locale';
-            if (is_dir($localePath)) {
-                $domain = $moduleName . $domainSuffix;
-                bindtextdomain($domain, $localePath)
-                    or trigger_error("Cannot bind text domain '$domain' to path $localePath", E_USER_WARNING);
-                bind_textdomain_codeset($domain, 'UTF-8')
-                    or trigger_error("Cannot bind text domain codeset: UTF-8", E_USER_WARNING);
-                if (!$domainSuffix) {
-                    $this->testGettext($domain.$domainSuffix, $localePath);
-                }
-            }
+            $this->bindGettextDomain("module://$moduleName/locale", $moduleName . $domainSuffix, $reload);
         }
 
         // 2. Hard-coded 'default' domain — conflict with a module named 'default' is a real error
@@ -458,19 +449,29 @@ class LocaleService implements ServiceInterface
                 "A module named 'default' conflicts with the built-in 'default' gettext domain."
             );
         }
-        $defaultPath = $api->fs->toPath('private://zolinga-intl/default/locale/');
-        if (is_dir($defaultPath)) {
-            $domain = 'default' . $domainSuffix;
-            bindtextdomain($domain, $defaultPath)
-                or trigger_error("Cannot bind text domain '$domain' to path $defaultPath", E_USER_WARNING);
+        $defaultZPath = 'private://zolinga-intl/default/locale/';
+        if (is_dir($defaultZPath)) {
+            $this->bindGettextDomain($defaultZPath, 'default' . $domainSuffix, $reload);
+        }
+    }
+
+    private function bindGettextDomain(string $zPath, string $domain, bool $reload) {
+        global $api;
+
+        // If reload is requested, we need to unbind the domain first. Unfortunately there is no built-in way to do it, so we bind it to a non-existing path.
+        if ($reload) {
+            bindtextdomain($domain, '/dev/null')
+                or trigger_error("Cannot unbind text domain '$domain' for reload", E_USER_WARNING);
+        }
+
+        $localePath = $api->fs->toPath($zPath);
+        if (is_dir($localePath)) {
+            bindtextdomain($domain, $localePath)
+                or trigger_error("Cannot bind text domain '$domain' to path $localePath", E_USER_WARNING);
             bind_textdomain_codeset($domain, 'UTF-8')
                 or trigger_error("Cannot bind text domain codeset: UTF-8", E_USER_WARNING);
-            if (!$domainSuffix) {
-                $this->testGettext($domain.$domainSuffix, $defaultPath);
-                textdomain('default')
-                    or trigger_error("Cannot set text domain: default", E_USER_WARNING);
-            }
-        }
+            $this->testGettext($domain, $localePath);
+        }        
     }
 
     private function testGettext(string $domain, ?string $path = null): bool

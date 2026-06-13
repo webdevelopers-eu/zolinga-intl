@@ -1,6 +1,6 @@
 {
     "name": "Zolinga Internationalization",
-    "version": "2.6.0",
+    "version": "2.6.2",
     "description": "Provides internationalization support for Zolinga applications.",
     "authors": [
         "Daniel Sevcik <danny@zolinga.net>"
@@ -73,6 +73,15 @@
             "event": "gettext:autotranslate",
             "class": "Zolinga\\Intl\\GettextCli",
             "method": "autotranslate",
+            "origin": [
+                "cli"
+            ]
+        },
+        {
+            "description": "CLI command that re-initializes gettext domains (both default and the '.static' suffix).",
+            "event": "gettext:reload",
+            "class": "Zolinga\\Intl\\GettextCli",
+            "method": "onReload",
             "origin": [
                 "cli"
             ]

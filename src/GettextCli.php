@@ -24,7 +24,7 @@ class GettextCli implements ListenerInterface
      * Without either, all domains are processed.
      *
      * @param RequestResponseEvent $event
-     * @return array<string, GettextDomain> Keyed by domain name.
+     * @return array<string, \Zolinga\Intl\Gettext\GettextDomain> Keyed by domain name.
      */
     private function getFilteredDomains(RequestResponseEvent $event): array|false
     {
@@ -136,5 +136,25 @@ class GettextCli implements ListenerInterface
         }
 
         $event->setStatus($event::STATUS_OK, 'Autotranslated gettext strings');
+    }
+
+    /**
+     * Re-initialize gettext domains so freshly compiled `.mo` files are picked up
+     * by the current PHP process. Initializes both the default domains and the
+     * `.static` (HTML) domains.
+     *
+     * @param RequestResponseEvent $event
+     * @return void
+     */
+    public function onReload(RequestResponseEvent $event): void
+    {
+        global $api;
+
+        $api->log->info('i18n', "▶️  Reloading gettext domains...");
+
+        $api->locale->initGettext(reload: true);
+        $api->locale->initGettext(domainSuffix: '.static', reload: true);
+
+        $event->setStatus($event::STATUS_OK, 'Reloaded gettext domains');
     }
 }

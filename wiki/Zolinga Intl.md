@@ -78,7 +78,7 @@ The translation workflow consists of the following steps
 
 # Languages
 
-The list of languages is configured in Zolinga's file `{ROOT}/config/global.json`.
+The list of supported languages is configured in Zolinga's file `{ROOT}/config/global.json`.
 
 Example:
 
@@ -92,3 +92,15 @@ Example:
   }
 }
 ```
+
+## Selecting the Active Language
+
+On each request, `$api->locale` picks the active language from the first match in this order:
+
+1. **`lang` cookie** — set automatically by `$api->locale` on the previous response; honors the user's manual language switch (highest priority, can be set by JS).
+2. **`lang` session value** — `$_SESSION['lang']`, persisted across requests (can be set only by PHP).
+3. **`Accept-Language` HTTP header** — `$_SERVER['HTTP_ACCEPT_LANGUAGE']`, the browser's preferred language(s).
+4. **Environment variable `LANG`** — read from `$_ENV['LANG']`. Useful for forcing a language on the CLI, in cron jobs, or in containers, e.g. `LANG=cs_CZ bin/zolinga gettext:extract --domains=my-module`. The value is matched against the configured `intl.locales` tags.
+5. **First entry of `intl.locales`** — the fallback default.
+
+Only the first source that matches a configured tag wins; the rest are ignored.

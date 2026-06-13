@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `bin/zolinga gettext:reload` CLI command that calls `$api->locale->initGettext(reload: true)` followed by `$api->locale->initGettext(prefix: '.static', reload: true)` to re-initialize both server-side and HTML gettext domains in the current PHP process (e.g. after running `gettext:compile`).
+- `LocaleService::initCurrentLanguage()` now also consults `$_ENV['LANG']` as an additional source when selecting the active language. It is checked last, after the `lang` cookie, session, and `Accept-Language` header, so the user's manual choice always wins. This makes it easy to force a default language on the CLI, in cron, or in containers, e.g. `LANG=cs_CZ bin/zolinga gettext:extract --domains=my-module`.
+
 ## [2.6.0] — 2026-06-02
 
 ### Changed
