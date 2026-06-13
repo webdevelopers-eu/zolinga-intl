@@ -116,7 +116,7 @@ class Extractor extends GettextAbstract
         foreach ($files as $file) {
             file_put_contents($tmpFile, $this->extractHtmlStrings($file), FILE_APPEND);
         }
-        $cmd = $this->getExtractCmd([$tmpFile], $potFile, '-L PHP --no-location');
+        $cmd = $this->getExtractCmd([$tmpFile], $potFile, '-L PHP');
         $this->exec("$cmd 2>&1", "Extracting gettext strings from HTML files...");
         $this->fixPotfile($potFile);
         unlink($tmpFile);
@@ -251,7 +251,8 @@ class Extractor extends GettextAbstract
         $filesEsc = array_map(fn($file) => sprintf($fixCmd, $file), $filesEsc);
 
         $cmd = "xgettext " .
-            "--add-comments=TRANSLATORS " . // If preceded by comments starting "TRANSLATORS: ", include those
+            "--add-comment=TRANSLATORS " . // If preceded by comments starting "TRANSLATORS: ", include those
+            "--no-location " . // Do not add #: source references (useless with /dev/fd/N paths from process substitution)
             "--verbose " .
             "--omit-header " .
             "--join-existing --from-code UTF-8 -F  " .
