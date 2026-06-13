@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Zolinga\Intl;
 
 use Zolinga\System\Events\{Event, ServiceInterface};
-use Locale, NumberFormatter;
+use Locale;
+use NumberFormatter;
 
 use const Zolinga\System\IS_CLI;
 use const Zolinga\System\ROOT_DIR;
@@ -446,7 +447,7 @@ class LocaleService implements ServiceInterface
                 bind_textdomain_codeset($domain, 'UTF-8')
                     or trigger_error("Cannot bind text domain codeset: UTF-8", E_USER_WARNING);
                 if (!$domainSuffix) {
-                    $this->testGettext($domain, $localePath);
+                    $this->testGettext($domain.$domainSuffix, $localePath);
                 }
             }
         }
@@ -465,9 +466,7 @@ class LocaleService implements ServiceInterface
             bind_textdomain_codeset($domain, 'UTF-8')
                 or trigger_error("Cannot bind text domain codeset: UTF-8", E_USER_WARNING);
             if (!$domainSuffix) {
-                $this->testGettext($domain, $defaultPath);
-            }
-            if (!$domainSuffix) {
+                $this->testGettext($domain.$domainSuffix, $defaultPath);
                 textdomain('default')
                     or trigger_error("Cannot set text domain: default", E_USER_WARNING);
             }
