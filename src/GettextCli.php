@@ -152,9 +152,8 @@ class GettextCli implements ListenerInterface
 
         $api->log->info('i18n', "▶️  Reloading gettext domains...");
 
-        $api->locale->initGettext(reload: true);
-        $api->locale->initGettext(domainSuffix: '.static', reload: true);
-
+        $api->locale->reloadGettext();
+        
         $event->setStatus($event::STATUS_OK, 'Reloaded gettext domains');
     }
 }

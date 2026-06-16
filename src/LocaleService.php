@@ -417,6 +417,12 @@ class LocaleService implements ServiceInterface
         $this->initGettext();
     }
 
+    public function reloadGettext(): void
+    {
+        $this->initGettext(domainSuffix: '', reload: true);
+        $this->initGettext(domainSuffix: '.static', reload: true);
+    }
+
     /**
      * Initialize gettext.
      * 

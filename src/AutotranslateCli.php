@@ -28,7 +28,7 @@ class AutotranslateCli implements ListenerInterface
     {
         global $api;
 
-        $steps = ['gettext:extract', 'gettext:autotranslate', 'gettext:compile'];
+        $steps = ['gettext:extract', 'gettext:autotranslate', 'gettext:reload', 'gettext:compile'];
 
         foreach ($steps as $eventName) {
             $api->log->info('i18n', "▶️  Running $eventName...");
