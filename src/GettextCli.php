@@ -108,7 +108,7 @@ class GettextCli implements ListenerInterface
             $jsCompiler->compile();
         }
 
-        $event->setStatus($event::STATUS_OK, 'Compiled gettext strings');
+        $event->setStatus($event::STATUS_OK, 'Compiled gettext strings. ‼️ Do not forget to restart PHP-FPM or Apache to reread the new gettext .mo files ‼️');
     }
 
     /**
