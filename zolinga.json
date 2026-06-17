@@ -78,15 +78,6 @@
             ]
         },
         {
-            "description": "CLI command that re-initializes gettext domains (both default and the '.static' suffix).",
-            "event": "gettext:reload",
-            "class": "Zolinga\\Intl\\GettextCli",
-            "method": "onReload",
-            "origin": [
-                "cli"
-            ]
-        },
-        {
             "description": "CLI pipeline: extract, autotranslate, and compile in one step.",
             "event": "autotranslate",
             "class": "Zolinga\\Intl\\AutotranslateCli",

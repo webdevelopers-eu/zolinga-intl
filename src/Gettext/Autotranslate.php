@@ -49,8 +49,6 @@ class Autotranslate extends GettextAbstract
                 $api->registry->releaseLock($lock);
             }
         }
-
-        $api->locale->reloadGettext();
     }
 
     /**

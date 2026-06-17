@@ -417,12 +417,6 @@ class LocaleService implements ServiceInterface
         $this->initGettext();
     }
 
-    public function reloadGettext(): void
-    {
-        $this->initGettext(domainSuffix: '', reload: true);
-        $this->initGettext(domainSuffix: '.static', reload: true);
-    }
-
     /**
      * Initialize gettext.
      * 
@@ -464,13 +458,21 @@ class LocaleService implements ServiceInterface
     private function bindGettextDomain(string $zPath, string $domain, bool $reload) {
         global $api;
 
-        // If reload is requested, we need to unbind the domain first. Unfortunately there is no built-in way to do it, so we bind it to a non-existing path.
+        $localePath = $api->fs->toPath($zPath);
+
+        // If reload is requested, we need to unbind the domain first. Unfortunately there is no built-in way to do it, 
+        // so we bind it to a new path.
         if ($reload) {
-            bindtextdomain($domain, '/dev/null')
-                or trigger_error("Cannot unbind text domain '$domain' for reload", E_USER_WARNING);
+            clearstatcache();
+            $api->log->info('i18n', "🔄 Reloading gettext domain '$domain'...");
+            $linkPath = $api->fs->toPath('private://zolinga-intl/') . ('gettext_reload_' . $domain);
+            if (file_exists($linkPath)) {
+                unlink($linkPath) or trigger_error("Cannot remove temporary link for reloading gettext domain '$domain'", E_USER_WARNING);
+            }
+            symlink($localePath, $linkPath) or trigger_error("Cannot create temporary link for reloading gettext domain '$domain'", E_USER_WARNING);
+            return $this->bindGettextDomain($linkPath, $domain, reload: false);
         }
 
-        $localePath = $api->fs->toPath($zPath);
         if (is_dir($localePath)) {
             bindtextdomain($domain, $localePath)
                 or trigger_error("Cannot bind text domain '$domain' to path $localePath", E_USER_WARNING);

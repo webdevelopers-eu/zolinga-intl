@@ -81,9 +81,11 @@ class GettextCli implements ListenerInterface
     /**
      * Compile gettext strings to the mo files.
      *
-    * The request parameter 'domains' can be used to specify one or more gettext
-    * domains to process (comma-separated). Otherwise all domains are processed.
+     * The request parameter 'domains' can be used to specify one or more gettext
+     * domains to process (comma-separated). Otherwise all domains are processed.
      *
+     * Runs on gettext:compile CLI event
+     * 
      * @param RequestResponseEvent $event
      * @return void
      */
@@ -136,24 +138,5 @@ class GettextCli implements ListenerInterface
         }
 
         $event->setStatus($event::STATUS_OK, 'Autotranslated gettext strings');
-    }
-
-    /**
-     * Re-initialize gettext domains so freshly compiled `.mo` files are picked up
-     * by the current PHP process. Initializes both the default domains and the
-     * `.static` (HTML) domains.
-     *
-     * @param RequestResponseEvent $event
-     * @return void
-     */
-    public function onReload(RequestResponseEvent $event): void
-    {
-        global $api;
-
-        $api->log->info('i18n', "▶️  Reloading gettext domains...");
-
-        $api->locale->reloadGettext();
-        
-        $event->setStatus($event::STATUS_OK, 'Reloaded gettext domains');
     }
 }

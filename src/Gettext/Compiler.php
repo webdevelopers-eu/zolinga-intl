@@ -34,8 +34,9 @@ class Compiler extends GettextAbstract
                 $api->log->info('i18n', "📦 Compiling gettext strings in {$this->domain->name} for locales: " . implode(', ', $this->locales));
                 $this->compileLanguagePoFiles();
                 $this->compileStaticPoFiles();
-                $api->locale->initGettext('.static');
-                $this->translateHtmlFiles();
+
+                // $this->translateHtmlFiles(); - we must run it in separate process to have new gettext .mo files freshly loaded
+                $this->runHtmlTranslation();
             } else {
                 $api->log->info('i18n', "{$this->domain}: 🔒Already being compiled by another process, skipping.");
             }
@@ -44,6 +45,28 @@ class Compiler extends GettextAbstract
         } finally {
             $api->registry->releaseLock($lock);
         }
+    }
+
+    private function runHtmlTranslation(): void
+    {
+        global $api;
+
+        $api->log->info('i18n', "Translating HTML files for domain {$this->domain->name}...");
+        $code = self::class . '::runTranslateHtmlFiles(' . var_export($this->domain->name, true) . ');';
+        $command = 'bin/zolinga --eval=' . escapeshellarg($code) . '';
+        $this->exec($command, "Running HTML translation for domain {$this->domain->name}", $output);
+    }
+
+    static function runTranslateHtmlFiles(string $domainName): void {
+        global $api;
+
+        $domain = $api->i18n->getGettextDomains()[$domainName] ?? null;
+        if (!$domain) {
+            $api->log->error('i18n', "Gettext domain '$domainName' not found. Cannot run compiler.");
+            return;
+        }
+
+        (new self($domain))->translateHtmlFiles();
     }
 
     /**
@@ -133,10 +156,11 @@ class Compiler extends GettextAbstract
      *
      * @return void
      */
-    private function translateHtmlFiles(): void
+    public function translateHtmlFiles(): void
     {
         global $api;
 
+        $api->locale->initGettext(domainSuffix: '.static');
         $files = $this->findFiles(FileTypes::HTML);
         foreach ($files as $file) {
             if (GettextDocument::getGettextMode($file) === 'translate') {
