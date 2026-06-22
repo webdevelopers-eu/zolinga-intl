@@ -91,7 +91,7 @@ class TranslatorService implements ServiceInterface, ListenerInterface
             'i18n:translation:done',
             OriginEnum::INTERNAL,
             [
-                'ai' => $event->request['ai'] ?? $this->defaultCapability($fromLang, $toLang),
+                'capabilities' => $event->request['capabilities'] ?? $this->defaultCapability($fromLang, $toLang),
                 'prompt' => $prompt,
                 'priority' => $event->request['priority'] ?? 0.5,
             ],

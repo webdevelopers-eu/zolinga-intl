@@ -18,7 +18,7 @@ use Zolinga\System\Types\OriginEnum;
  * - 'fromLang' (string, required): Source language tag (e.g. "en_US").
  * - 'toLang' (string, required): Target language tag (e.g. "cs_CZ").
  * - 'context' (string|null): Optional context for the translator. Default: null.
- * - 'ai' (string): AI backend name. Default: "translator".
+ * - 'capabilities' (string): Required capability or array of capabilities. Default: "translate:*".
  * - 'priority' (float): Processing priority between 0 and 1 (exclusive). Higher = processed first. Default: 0.5.
  *
  * Response keys:
@@ -62,7 +62,7 @@ class TranslateEvent extends RequestResponseEvent
     }
 
     private const REQUEST_DEFAULTS = [
-        'ai' => 'translate:*',
+        'capabilities' => 'translate:*',
         'fromLang' => 'en_US',
         'context' => null,
         'priority' => 0.5,
