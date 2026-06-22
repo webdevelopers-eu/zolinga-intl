@@ -31,7 +31,7 @@ class TranslatorService implements ServiceInterface, ListenerInterface
      * @param string $fromLang Source language tag (e.g. "en_US"). Must be a valid ICU/CLDR locale.
      * @param string $toLang Target language tag (e.g. "cs_CZ"). Must be a valid ICU/CLDR locale.
      * @param string|null $context Optional context to guide the translation.
-     * @param string|null $ai AI capability (or array of) to use. Default: "translate:<from>-<to>" where each side is the primary language subtag (e.g. "translate:en-cs").
+     * @param string|null $aiCapabilities AI capability (or array of) to use. Default: "translate:<from>-<to>" where each side is the primary language subtag (e.g. "translate:en-cs").
      * @return string The translated text.
      * @throws \InvalidArgumentException If $fromLang or $toLang is not a valid locale tag.
      */
@@ -40,7 +40,7 @@ class TranslatorService implements ServiceInterface, ListenerInterface
         string $fromLang,
         string $toLang,
         ?string $context = null,
-        ?string $ai = null,
+        string|array|null $aiCapabilities = null,
         GettextTemplateEnum $template = GettextTemplateEnum::DEFAULT
     ): ?string {
         global $api;
@@ -48,9 +48,9 @@ class TranslatorService implements ServiceInterface, ListenerInterface
         $this->assertLocale($fromLang, 'fromLang');
         $this->assertLocale($toLang, 'toLang');
 
-        $ai = $ai ?? $this->defaultCapability($fromLang, $toLang);
+        $aiCapabilities = $aiCapabilities ?? $this->defaultCapability($fromLang, $toLang);
         $prompt = $this->buildPrompt($string, $fromLang, $toLang, $context, $template);
-        $result = $api->ai->prompt($ai, $prompt);
+        $result = $api->ai->prompt($aiCapabilities, $prompt);
 
         return is_string($result) ? (trim($result) ?: null) : null;
     }
