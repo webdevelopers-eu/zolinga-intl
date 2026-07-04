@@ -55,7 +55,15 @@ The `gettext` attribute is a whitespace-separated list of keywords:
 | `alt` | Translate the `alt` attribute |
 | `content` | Translate the `content` attribute (for `<meta>`) |
 | `my-module:title` | Use domain `my-module` instead of default |
-| `.#a3f2b1` | Hash suffix (added by compiler, do not add manually) |
+| `.#a3f2b1` | Hash suffix (added by extractor, do not add manually) |
+
+**CRITICAL RULE — NEVER add `#hash` suffixes manually.** The hash suffixes (e.g. `.#a3f2b1`, `content#4db541`) are computed and inserted automatically by `bin/zolinga gettext:extract` using a special calculation. When marking content as translatable:
+- Write `gettext="."`, NOT `gettext=".#abc123"`
+- Write `gettext="content"`, NOT `gettext="content#abc123"`
+- Write `gettext="default:."`, NOT `gettext="default:.#abc123"`
+- If a hash already exists on an element (from a prior extract run), LEAVE IT — it was generated correctly.
+- If no hash exists, DO NOT add one — just write the keyword without a hash.
+- After editing, run `bin/zolinga gettext:extract` to let the tool add the correct hashes.
 
 Examples:
 
@@ -241,6 +249,8 @@ Always mark citations, quotes, and attribution text as translatable. Legal citat
 Run `bin/zolinga gettext:extract --domains=my-module,default` to generate `.po` files, then translate and compile.
 
 **Important**: `gettext:extract` modifies source HTML files in place — each keyword in every `gettext` attribute receives a `#`-prefixed 6-character hash suffix that uniquely identifies the element. For example, `gettext="."` becomes `gettext=".#a3f2b1"` and `gettext=". title"` becomes `gettext=".#d2bc00 title#1396ff"`. These hashes link source elements to their translations across files. Commit the updated source files after extraction.
+
+**NEVER add hash suffixes manually when marking content.** Write `gettext="."` and let the extractor add `.#a3f2b1`. Only the extractor knows the correct hash calculation.
 
 Note that all translations not in a module but in data folders like `data/` or `public/data` can be translated using the built-in `default` domain. Use `--domains=default` to extract and compile these translations.
 
