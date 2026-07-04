@@ -300,7 +300,7 @@ class Autotranslate extends GettextAbstract
         $api->log->log(
             $instructions ? SeverityEnum::WARNING : SeverityEnum::INFO, 
             'i18n', 
-            "✨ Translation: \n$icon Original: $original \n$icon Translat: $translated" . 
+            "✨ Translation: \n$icon Source: $original \n$icon Target: $translated" . 
             ($instructions ? " \n🚨 Issues: " . implode(" ", $instructions) :  '')
         );
 

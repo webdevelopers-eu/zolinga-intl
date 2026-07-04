@@ -160,7 +160,7 @@ class GettextPoFile
     {
         return array_values(array_filter(
             $this->entries,
-            fn($e) => trim($e->msgid) !== '' && (!$e->isTranslated || $e->isFuzzy)
+            fn($e) => trim($e->msgid) !== '' && (!$e->isTranslated || $e->isFuzzy || $e->hasFlag('retranslate'))
         ));
     }
 

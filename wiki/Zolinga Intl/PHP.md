@@ -46,6 +46,19 @@ The comment must:
 
 Multiple comments can be used and will be concatenated in the `.po` file. 
 
+## Forcing Retranslation
+
+By default, the extractor remembers the first translation for a given `msgid` and reuses it even if the context (the `\x04` context prefix, surrounding code, etc.) later changes. When you change the context of an already-translated string and want the new context to be picked up, force a retranslation with a `TRANSLATORS: #retranslate` comment:
+
+```php
+// TRANSLATORS: #retranslate
+echo dgettext('my-module', "Confirm form submission\x04Send");
+```
+
+This emits a `retranslate` flag into the `.po` entry, making it eligible for autotranslation again. The comment is **permanent** — it stays in the source and re-marks the entry on every extraction. You must remove it manually once the retranslation has been done, otherwise the entry keeps getting retranslated over and over.
+
+> After retranslation, run `gettext:autotranslate` (or `autotranslate`) to fill in the new `msgstr`, then `gettext:compile` to regenerate the binary `.mo` files.
+
 ```php
 echo sprintf(dngettext('my-module', 'There is one apple', 'There are %d apples', 3), 3);
 ```

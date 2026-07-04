@@ -180,6 +180,31 @@ Add notes for translators using HTML comments starting with `TRANSLATORS:`. They
 
 ---
 
+## Forcing Retranslation
+
+By default, the extractor remembers the first translation for a given `msgid` and reuses it even if the surrounding context (attributes, semantic role, adjacent text) later changes. When you change the context of an already-translated string and want the new context to be picked up, you must force a retranslation.
+
+**Recommended for HTML — the `gettext-retranslate` attribute:**
+
+```html
+<h1 gettext=".#a3f2b1" gettext-retranslate="true">Welcome</h1>
+```
+
+On the next `gettext:extract`, the attribute is consumed: it emits a `retranslate` flag into the `.po` entry and **removes itself from the source file**. The entry then becomes eligible for autotranslation again. Because it is auto-removed, you do not need to clean it up afterwards — this is the recommended approach for HTML.
+
+**Alternative — the `TRANSLATORS: #retranslate` comment:**
+
+```html
+<!-- TRANSLATORS: #retranslate -->
+<h1 gettext=".#a3f2b1">Welcome</h1>
+```
+
+This has the same effect but is **permanent**: the comment stays in the source and re-marks the entry as `retranslate` on every extraction. You must remove it manually once the retranslation has been done, otherwise the entry keeps getting retranslated over and over. Prefer the `gettext-retranslate` attribute unless you have a reason to keep the marker around.
+
+> After retranslation, run `gettext:autotranslate` (or `autotranslate`) to fill in the new `msgstr`, then `gettext:compile` to regenerate the localized files.
+
+---
+
 ## Keeping Translated Files Up to Date
 
 Generated translated files contain `<meta name="gettext" content="replace"/>`. This tells the compiler to regenerate the file from scratch on the next compile run. Do not manually edit these files.

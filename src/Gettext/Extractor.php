@@ -293,7 +293,7 @@ class Extractor extends GettextAbstract
 
         foreach ($doc->translatables as $id => $node) {
             $id = preg_replace('/#[a-z0-9]{6}/', '', $id); // Remove existing hash to avoid duplicates
-            $strings[] = $this->makePhpLine($id, $node, "<$doc->filePath>" . " ($id, " . $node->getNodePath() . ")");
+            $strings[] = $this->makePhpLine($id, $node, "<$doc->filePath>" . " ($id, " . $node->getNodePath() . ")", $changed);
             $changed = $node->ensureGettextHash() || $changed;
         }
 
@@ -310,7 +310,7 @@ class Extractor extends GettextAbstract
     /**
      * Generate fake PHP gettext line for virtual file.
      */
-    private function makePhpLine(string $id, GettextElement|GettextAttribute $node, string $source): string
+    private function makePhpLine(string $id, GettextElement|GettextAttribute $node, string $source, bool &$changed): string
     {
         $string = $node->gettextString;
         if ($string === '') {
@@ -330,12 +330,18 @@ class Extractor extends GettextAbstract
         $comments = [];
 
         // Describe the element, helps with <button> and such.
+        if ($element->hasAttribute('gettext-retranslate')) {
+            $comments[] = "// TRANSLATORS: FLAGS: retranslate";
+            $element->removeAttribute('gettext-retranslate'); // it is one-time thing
+            $changed = true;
+        }
+
         $comments = array_merge(
             $comments, 
             $this->getAdjacentContext($element),
-            $this->getCommentsAboutSemanticElement($node)
+            $this->getCommentsAboutSemanticElement($node),
         );
-        $comments[] = "// TRANSLATORS: SOURCE: " . $source;
+        // $comments[] = "// TRANSLATORS: SOURCE: " . $source;
 
         // Nested comments
         /** @disregard */

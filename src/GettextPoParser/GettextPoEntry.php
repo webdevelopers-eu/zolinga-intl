@@ -67,7 +67,7 @@ class GettextPoEntry implements \Stringable
     /** Comments of type "#." (translator notes). @return array<string> */
     public array $translatorComments {
         get {
-            $comments = array_filter($this->comments, fn($c) => str_starts_with($c, '#.') && !preg_match('/^#\.\s*(TRANSLATORS:\s*)?SOURCE:/', $c));
+            $comments = array_filter($this->comments, fn($c) => str_starts_with($c, '#.') && !preg_match('/^#\.\s*(TRANSLATORS:\s*)?(FLAGS:|SOURCE:|#[a-z])/i', $c));
             $comments = array_map(fn($c) => preg_replace('/^#\.\s*(TRANSLATORS:\s*)?/', '', trim($c)), $comments); 
             return array_unique($comments);
         }
@@ -81,8 +81,8 @@ class GettextPoEntry implements \Stringable
     /** Comments of type "#," (flags). @return array<string> */
     public array $flags {
         get {
-            $rows = array_filter($this->comments, fn($c) => str_starts_with($c, '#,'));
-            $rows = array_values(array_map(fn($c) => trim($c, ' #,'), $rows));
+            $rows = array_filter($this->comments, fn($c) => str_starts_with($c, '#,') || preg_match('/^#\.\s*(TRANSLATORS:\s*)?(FLAGS:|#retranslate)/', $c));
+            $rows = array_values(array_map(fn($c) => trim(trim(preg_replace('/^(#\.\s*(TRANSLATORS:\s*)?(FLAGS:\s*)?|#,\s*)/', '', trim($c))), '#'), $rows));
             $flags = preg_split('/\s*,\s*/', implode(',', $rows));
             return array_filter($flags);
         }
