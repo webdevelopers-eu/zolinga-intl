@@ -367,7 +367,12 @@ class GettextPoFile
     private function parsePluralForms(string $pluralForms): void
     {
         global $api;
-        foreach (explode(';', trim($pluralForms, "\r\n ;")) as $part) {
+
+        // $pluralForms = "Plural-Forms: nplurals=1"; 
+        $str = trim($pluralForms, "\r\n ;");
+        $str = preg_replace('/^Plural-Forms:\s*/', '', $str);
+
+        foreach (explode(';', $str) as $part) {
             $part = trim($part);
             list($key, $value) = explode('=', $part, 2) + [null, null];
             $key = trim($key ?? '');
