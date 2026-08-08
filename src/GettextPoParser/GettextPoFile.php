@@ -410,9 +410,10 @@ class GettextPoFile
         $examples = array_fill(0, $this->nplurals, []);
         $remaining = range(0, $this->nplurals - 1);
 
+        // Remove all that should not be there - including '"' that we use later in /bin/sh to avoid shell injection.
         $formula = preg_replace('/[^n0-9><=!&|?:()]+/', '', $this->plural);
         // That is ugly, but still the simplest
-        $cmdTemplate = sprintf('env -i /bin/sh -c "echo $(( %s ))"', trim(escapeshellarg(str_replace('n', '%n', $formula)), "'\""));
+        $cmdTemplate = sprintf('env -i /bin/sh -c "echo $(( "%s" ))"', trim(escapeshellarg(str_replace('n', '%n', $formula)), "'\""));
 
         for ($n = 0; $n < 200; $n++) {
             $cmd = str_replace('%n', strval($n), $cmdTemplate);
