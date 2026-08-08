@@ -407,13 +407,20 @@ class GettextPoFile
             throw new \RuntimeException("Plural-Forms header is missing or invalid: " . json_encode($this->header, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . " in file $this");
         }
 
+        // Check that the malicious plural expression is not too long
+        if (strlen($this->plural) > 512) {
+            throw new \RuntimeException("Plural-Forms header is too long: " . json_encode($this->header, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . " in file $this");
+        }
+
         $examples = array_fill(0, $this->nplurals, []);
         $remaining = range(0, $this->nplurals - 1);
 
-        // Remove all that should not be there - including '"' that we use later in /bin/sh to avoid shell injection.
+        // This creates a shell command that evaluates the plural expression for a given n.
+        // It feels wrong but it is safe.
+        // CRITICAL STEP: Remove all that should not be there - including '"' that we use later in /bin/sh to avoid shell injection.
         $formula = preg_replace('/[^n0-9><=!&|?:()]+/', '', $this->plural);
         // That is ugly, but still the simplest
-        $cmdTemplate = sprintf('env -i /bin/sh -c "echo $(( "%s" ))"', trim(escapeshellarg(str_replace('n', '%n', $formula)), "'\""));
+        $cmdTemplate = sprintf('env -i /bin/sh -c "echo $(( "%s" ))"', escapeshellarg(str_replace('n', '%n', $formula)));
 
         for ($n = 0; $n < 200; $n++) {
             $cmd = str_replace('%n', strval($n), $cmdTemplate);
