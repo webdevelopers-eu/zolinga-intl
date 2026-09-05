@@ -209,13 +209,16 @@ This has the same effect but is **permanent**: the comment stays in the source a
 
 Generated translated files contain `<meta name="gettext" content="replace"/>`. This tells the compiler to regenerate the file from scratch on the next compile run. Do not manually edit these files.
 
-Three modes you can set in a translated file's meta tag:
+Four modes you can set in a file's meta tag:
 
-| `content` value | Behavior |
-|---|---|
-| `translate` | Source file — never overwrite |
-| `replace` | Fully regenerate on next compile (default for generated files) |
-| `cherry-pick` | Preserve manual edits; only update elements that still have a `gettext` attribute |
+| `content` value | Applies to | Behavior |
+|---|---|---|
+| `translate` | Source files only | Source file — never overwritten by the compiler |
+| `replace` | Localized files | Fully regenerate on next compile (default for generated files) |
+| `cherry-pick` | Localized files | Preserve manual edits; only update elements that still have a `gettext` attribute |
+| `protect` | Localized files | Never translated or regenerated — the compiler skips the file entirely |
+
+The `translate` mode is only valid in **source** files. Localized (generated) files must use `replace`, `cherry-pick` or `protect`. If a localized file carries any other value — for example a leftover `translate` tag — the compiler logs a warning and regenerates the file from source anyway, so new markup is never lost.
 
 Use `cherry-pick` when you want to maintain a large translated page manually but still auto-update a few strings (e.g. the `<title>`):
 
@@ -223,6 +226,12 @@ Use `cherry-pick` when you want to maintain a large translated page manually but
 <meta name="gettext" content="cherry-pick"/>
 <title gettext=".#a3f2b1">Naše stránka</title>
 <h1>Ručně psaný nadpis</h1>  <!-- left alone -->
+```
+
+Use `protect` on a localized file you have fully rewritten by hand and never want the compiler to touch:
+
+```html
+<meta name="gettext" content="protect"/>
 ```
 
 ---

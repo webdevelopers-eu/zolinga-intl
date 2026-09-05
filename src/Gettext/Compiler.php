@@ -186,16 +186,10 @@ class Compiler extends GettextAbstract
 
         $oldLocale = $api->locale->locale;
         $api->locale->locale = $locale;
-        $modeString = file_exists($targetFile) ? GettextDocument::getGettextMode($targetFile) : 'replace';
-        $mode = GettextModeEnum::tryFrom($modeString);
+        $mode = $this->resolveTargetMode($targetFile);
 
         if ($mode === GettextModeEnum::PROTECT) {
             $api->log->info('i18n', "File $targetFile is protected from translation. Skipping.");
-            return;
-        } elseif (!$mode) { // Maybe we don't want to translate this file if the mode is not what it should be
-            $api->log->warning('i18n', "Unexpected gettext mode '$modeString' in $targetFile. Skipping translation for this file.");
-            $validOptions = implode(', ', array_map(fn($m) => $m->value, GettextModeEnum::cases()));
-            $api->log->tip('i18n', "Check the <meta name=\"gettext\" content=\"...\"> tag in the $targetFile and make sure it has a valid value: $validOptions.");
             return;
         }
 
@@ -238,6 +232,31 @@ class Compiler extends GettextAbstract
         $targetDoc->substituteEntities = false;        
         $targetDoc->saveHTMLFile($targetFile);
         $api->locale->locale = $oldLocale;
+    }
+
+    /**
+     * Resolve the gettext mode of a localized (target) file.
+     *
+     * Localized files may only be in 'replace' or 'cherry-pick' mode — 'translate'
+     * is reserved for source files. Any other value issues a warning and falls back
+     * to 'replace' so that the file gets fully regenerated from the source.
+     *
+     * @param string $targetFile Path to the localized file.
+     * @return GettextModeEnum
+     */
+    private function resolveTargetMode(string $targetFile): GettextModeEnum
+    {
+        global $api;
+
+        $modeString = file_exists($targetFile) ? GettextDocument::getGettextMode($targetFile) : 'replace';
+        $mode = $modeString === null ? null : GettextModeEnum::tryFrom($modeString);
+
+        if (in_array($mode, [GettextModeEnum::REPLACE, GettextModeEnum::CHERRY_PICK, GettextModeEnum::PROTECT], true)) {
+            return $mode;
+        }
+
+        $api->log->error('i18n', "Invalid gettext mode '" . ($modeString ?? 'none') . "' in localized file $targetFile. Only 'replace', 'protect' and 'cherry-pick' are allowed in localized files. The file will be regenerated from source.");
+        return GettextModeEnum::REPLACE;
     }
 
     private function mkFileName(string $file, string $locale): string
