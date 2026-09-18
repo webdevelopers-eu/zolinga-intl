@@ -235,7 +235,7 @@ class LocaleService implements ServiceInterface
         $currentPath = parse_url($currentUri, PHP_URL_PATH) ?: '/';
         $currentQuery = parse_url($currentUri, PHP_URL_QUERY) ?: '';
 
-        $pathWithoutLang = $this->stripLangFromUrlPath($currentPath);
+        $pathWithoutLang = rtrim($this->stripLangFromUrlPath($currentPath), '/');
 
         $urls = [];
         foreach ($this->supportedTags as $tag) {
