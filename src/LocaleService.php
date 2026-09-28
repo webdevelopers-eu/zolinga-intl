@@ -27,6 +27,17 @@ class LocaleService implements ServiceInterface
 {
 
     /**
+     * Languages written in dense scripts that convey more information per
+     * character than Latin script: CJK ideographs (ja, zh, ko), scripts
+     * without inter-word spaces (th, lo, km, my) and abjads that omit
+     * vowels (ar, he). Text in these languages is typically much shorter
+     * than English, so length limits tuned for Latin languages do not apply.
+     *
+     * @var array<string>
+     */
+    public const DENSE_LANGS = ['ar', 'he', 'ja', 'km', 'ko', 'lo', 'my', 'th', 'zh'];
+
+    /**
      * The current language tag selected and canonicalized from $api->config['intl']['locales'].
      *
      * @var string|null
@@ -267,6 +278,27 @@ class LocaleService implements ServiceInterface
             '',
             $url
         ) ?: '/';
+    }
+
+    /**
+     * Check whether the given (or current) language uses a dense script.
+     *
+     * Dense-script languages pack more information into fewer characters,
+     * so length limits tuned for Latin languages do not apply to them.
+     *
+     * Example:
+     *
+     *  $api->locale->isDenseLang('ja_JP'); // true
+     *  $api->locale->isDenseLang('en_US'); // false
+     *  $api->locale->isDenseLang(); // checks the current language
+     *
+     * @param string|null $lang Language tag in any format understood by ICU's \Locale class. Defaults to the current language.
+     * @return bool
+     */
+    public function isDenseLang(?string $lang = null): bool
+    {
+        $tag = $lang ?? $this->tag;
+        return $tag !== null && in_array(Locale::getPrimaryLanguage($tag), self::DENSE_LANGS, true);
     }
 
     public function __get(string $name): ?string
