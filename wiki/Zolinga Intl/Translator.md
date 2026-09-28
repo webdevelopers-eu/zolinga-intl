@@ -10,7 +10,7 @@ $translated = $api->translator->translate(
     fromLang: 'en_US',
     toLang: 'cs_CZ',
     context: 'This is a greeting on a public website.',
-    ai: ['translate:en-cs', 'oxford-dictionary'], // optional, default: 'translate:<fromLang>-<toLang>'
+    ai: ['translate:en/cs', 'oxford-dictionary'], // optional, default: 'translate:<fromLang>/<toLang>'
 );
 echo $translated; // "Ahoj světe"
 ```
@@ -82,7 +82,7 @@ Template variables:
 
 ## AI Backend
 
-The translator resolves its AI backend by capability, using the **primary language subtag** of the language pair — for example `translate:en-cs` for `en_US`→`cs_CZ` and `en`→`cs`. Match it on the backend with a wildcard capability such as `translate:*` or per-pair entries like `translate:en-cs` and `translate:en-de`. The short codes (not the full locale tags) are used so that `en_US`, `en_GB`, and `en` all route to the same backend.
+The translator resolves its AI backend by capability, using the **primary language subtag** of the language pair — for example `translate:en/cs` for `en_US`→`cs_CZ` and `en`→`cs`. Match it on the backend with a wildcard capability such as `translate:*` or per-pair entries like `translate:en/cs` and `translate:en/de`. The short codes (not the full locale tags) are used so that `en_US`, `en_GB`, and `en` all route to the same backend.
 
 Configure it in `config/zolinga-ai/ai-backends.json`:
 
@@ -105,7 +105,7 @@ For per-language routing, declare one entry per pair:
         "type": "ollama",
         "url": "https://user:pass@ai.example.com/api",
         "model": "translategemma:12b",
-        "capabilities": ["translate:en-cs", "translate:en-de"]
+        "capabilities": ["translate:en/cs", "translate:en/de"]
     },
     {
         "type": "ollama",
@@ -116,7 +116,7 @@ For per-language routing, declare one entry per pair:
 ]
 ```
 
-You can override the default by passing a capability (string or array) to `translate()` or the `ai` field of a `TranslateEvent` request — for example `ai: ['translate:en-cs', 'oxford-dictionary']`. See [Zolinga AI:Configuation](:Zolinga AI:Configuation) for the full configuration reference.
+You can override the default by passing a capability (string or array) to `translate()` or the `ai` field of a `TranslateEvent` request — for example `ai: ['translate:en/cs', 'oxford-dictionary']`. See [Zolinga AI:Configuation](:Zolinga AI:Configuation) for the full configuration reference.
 
 ## Processing Async Translations
 

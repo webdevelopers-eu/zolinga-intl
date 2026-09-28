@@ -31,7 +31,7 @@ class TranslatorService implements ServiceInterface, ListenerInterface
      * @param string $fromLang Source language tag (e.g. "en_US"). Must be a valid ICU/CLDR locale.
      * @param string $toLang Target language tag (e.g. "cs_CZ"). Must be a valid ICU/CLDR locale.
      * @param string|null $context Optional context to guide the translation.
-     * @param string|null $aiCapabilities AI capability (or array of) to use. Default: "translate:<from>-<to>" where each side is the primary language subtag (e.g. "translate:en-cs").
+     * @param string|array|null $aiCapabilities AI capability (or array of) to use. Default: "translate:<from>/<to>" where each side is the primary language subtag (e.g. "translate:en/cs").
      * @return string The translated text.
      * @throws \InvalidArgumentException If $fromLang or $toLang is not a valid locale tag.
      */
@@ -131,18 +131,18 @@ class TranslatorService implements ServiceInterface, ListenerInterface
      * Build the default AI capability for a language pair.
      *
      * Normalizes both tags to their primary language subtag so the matcher
-     * sees a short, locale-independent capability like "translate:en-cs"
+     * sees a short, locale-independent capability like "translate:en/cs"
      * regardless of whether the caller passed "en_US" or "en".
      *
      * @param string $fromLang Source locale tag.
      * @param string $toLang Target locale tag.
-     * @return string Capability string in the form "translate:<from>-<to>".
+     * @return string Capability string in the form "translate:<from>/<to>".
      */
     private function defaultCapability(string $fromLang, string $toLang): string
     {
         $from = Locale::getPrimaryLanguage($fromLang) ?: $fromLang;
         $to = Locale::getPrimaryLanguage($toLang) ?: $toLang;
-        return "translate:$from-$to";
+        return "translate:$from/$to";
     }
 
     /**
